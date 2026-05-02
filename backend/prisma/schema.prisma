@@ -1,0 +1,302 @@
+// ============================================================
+// SCHEMA PRISMA — Sistema Chatbot Restaurantes
+// Multi-tenant: cada Restaurant es un cliente independiente
+// Base de datos: MariaDB
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// RESTAURANTE (tenant principal)
+// ─────────────────────────────────────────────
+model Restaurant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?  @db.Text
+  address     String?
+  phone       String?
+  currency    String   @default("USD")
+  timezone    String   @default("America/Mexico_City")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  schedules      RestaurantSchedule[]
+  whatsappConfig WhatsappConfig?
+  printers       Printer[]
+  categories     Category[]
+  menuItems      MenuItem[]
+  tables         Table[]
+  orders         Order[]
+  users          User[]
+  printJobs      PrintJob[]
+
+  @@map("restaurants")
+}
+
+// ─────────────────────────────────────────────
+// HORARIOS
+// ─────────────────────────────────────────────
+model RestaurantSchedule {
+  id           String  @id @default(uuid())
+  restaurantId String
+  dayOfWeek    Int
+  openTime     String
+  closeTime    String
+  isOpen       Boolean @default(true)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, dayOfWeek])
+  @@map("restaurant_schedules")
+}
+
+// ─────────────────────────────────────────────
+// CONFIGURACIÓN WHATSAPP BUSINESS
+// ─────────────────────────────────────────────
+model WhatsappConfig {
+  id                 String   @id @default(uuid())
+  restaurantId       String   @unique
+  phoneNumberId      String
+  phoneNumber        String
+  accessToken        String   @db.Text
+  webhookVerifyToken String
+  businessAccountId  String?
+  welcomeMessage     String   @default("¡Hola! Bienvenido 👋 ¿Qué te gustaría ordenar hoy?") @db.Text
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  restaurant         Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_configs")
+}
+
+// ─────────────────────────────────────────────
+// IMPRESORAS
+// ─────────────────────────────────────────────
+model Printer {
+  id           String      @id @default(uuid())
+  restaurantId String
+  name         String
+  type         PrinterType @default(USB)
+  host         String?
+  port         Int?
+  agentToken   String      @unique @default(uuid())
+  isOnline     Boolean     @default(false)
+  lastSeenAt   DateTime?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  printJobs    PrintJob[]
+
+  @@map("printers")
+}
+
+enum PrinterType {
+  USB
+  NETWORK
+}
+
+// ─────────────────────────────────────────────
+// MENÚ
+// ─────────────────────────────────────────────
+model Category {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  emoji        String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items        MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id           String   @id @default(uuid())
+  restaurantId String
+  categoryId   String
+  name         String
+  description  String?  @db.Text
+  price        Decimal  @db.Decimal(10, 2)
+  imageUrl     String?  @db.Text
+  isAvailable  Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  options      Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category     Category    @relation(fields: [categoryId], references: [id])
+  orderItems   OrderItem[]
+
+  @@map("menu_items")
+}
+
+// ─────────────────────────────────────────────
+// MESAS
+// ─────────────────────────────────────────────
+model Table {
+  id           String  @id @default(uuid())
+  restaurantId String
+  number       String
+  capacity     Int     @default(4)
+  isActive     Boolean @default(true)
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([restaurantId, number])
+  @@map("tables")
+}
+
+// ─────────────────────────────────────────────
+// ÓRDENES
+// ─────────────────────────────────────────────
+model Order {
+  id              String      @id @default(uuid())
+  restaurantId    String
+  orderNumber     String
+  customerPhone   String
+  customerName    String?
+  serviceType     ServiceType
+  tableId         String?
+  deliveryAddress String?     @db.Text
+  status          OrderStatus @default(PENDING)
+  subtotal        Decimal     @db.Decimal(10, 2)
+  tax             Decimal     @db.Decimal(10, 2) @default(0)
+  total           Decimal     @db.Decimal(10, 2)
+  notes           String?     @db.Text
+  waMessageId     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+
+  restaurant      Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table           Table?      @relation(fields: [tableId], references: [id])
+  items           OrderItem[]
+  printJobs       PrintJob[]
+
+  @@unique([restaurantId, orderNumber])
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  menuItemId  String
+  name        String
+  price       Decimal  @db.Decimal(10, 2)
+  quantity    Int      @default(1)
+  notes       String?
+  options     Json?
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
+}
+
+enum ServiceType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────
+// COLA DE IMPRESIÓN
+// ─────────────────────────────────────────────
+model PrintJob {
+  id           String      @id @default(uuid())
+  restaurantId String
+  printerId    String
+  orderId      String?
+  status       PrintStatus @default(PENDING)
+  payload      Json
+  attempts     Int         @default(0)
+  lastError    String?     @db.Text
+  createdAt    DateTime    @default(now())
+  processedAt  DateTime?
+
+  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  printer      Printer     @relation(fields: [printerId], references: [id])
+  order        Order?      @relation(fields: [orderId], references: [id])
+
+  @@map("print_jobs")
+}
+
+enum PrintStatus {
+  PENDING
+  SENT
+  PRINTED
+  FAILED
+}
+
+// ─────────────────────────────────────────────
+// SESIONES DE CONVERSACIÓN
+// ─────────────────────────────────────────────
+model ConversationSession {
+  id           String   @id @default(uuid())
+  restaurantId String
+  phoneNumber  String
+  state        String
+  cart         Json
+  data         Json
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([restaurantId, phoneNumber])
+  @@map("conversation_sessions")
+}
+
+// ─────────────────────────────────────────────
+// USUARIOS DEL BACKOFFICE
+// ─────────────────────────────────────────────
+model User {
+  id           String    @id @default(uuid())
+  restaurantId String
+  name         String
+  email        String
+  password     String
+  role         UserRole  @default(STAFF)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, email])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  VIEWER
+}

@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # ── Base de datos MariaDB ──────────────────────────
+  db:
+    image: mariadb:11
+    container_name: chatbot_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-chatbot_db}
+      MYSQL_USER: ${DB_USER:-chatbot}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-chatbot_pass}
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend ───────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatbot_backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: mysql://root:${DB_ROOT_PASSWORD:-rootpassword}@db:3306/${DB_NAME:-chatbot_db}
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-jwt}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-cambia-este-refresh-secret}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # ── Backoffice (build estático con nginx) ─────────
+  backoffice:
+    build:
+      context: ./backoffice
+      dockerfile: Dockerfile
+    container_name: chatbot_backoffice
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
