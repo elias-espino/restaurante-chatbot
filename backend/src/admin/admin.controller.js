@@ -186,14 +186,19 @@ const createRestaurant = async (req, res) => {
 const updateRestaurant = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, address, phone, currency, timezone, isActive } = req.body;
+    const { name, slug, address, phone, currency, timezone, isActive } = req.body;
 
     const exists = await prisma.restaurant.findUnique({ where: { id } });
     if (!exists) return error(res, 'Restaurante no encontrado', 404);
 
+    if (slug && slug !== exists.slug) {
+      const slugTaken = await prisma.restaurant.findUnique({ where: { slug } });
+      if (slugTaken) return error(res, 'El slug ya está en uso por otro restaurante', 400);
+    }
+
     const updated = await prisma.restaurant.update({
       where: { id },
-      data: { name, address, phone, currency, timezone, isActive },
+      data: { name, slug, address, phone, currency, timezone, isActive },
     });
 
     logger.info(`Restaurante actualizado: ${updated.name} — isActive: ${updated.isActive}`);

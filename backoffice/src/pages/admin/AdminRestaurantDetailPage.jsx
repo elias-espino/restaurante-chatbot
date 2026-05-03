@@ -20,7 +20,7 @@ export default function AdminRestaurantDetailPage() {
 
   const [form, setForm] = useState(null)
   if (r && !form) {
-    setForm({ name: r.name, address: r.address || '', phone: r.phone || '', currency: r.currency, timezone: r.timezone })
+    setForm({ name: r.name, slug: r.slug, address: r.address || '', phone: r.phone || '', currency: r.currency, timezone: r.timezone })
   }
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
@@ -114,9 +114,15 @@ export default function AdminRestaurantDetailPage() {
           <h2 className="font-semibold text-gray-900">Datos del restaurante</h2>
         </div>
         <form onSubmit={handleSave} className="p-5 space-y-4">
-          <div>
-            <label className="label">Nombre</label>
-            <input className="input" value={form.name} onChange={set('name')} required />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Nombre</label>
+              <input className="input" value={form.name} onChange={set('name')} required />
+            </div>
+            <div>
+              <label className="label">Slug <span className="text-gray-400 font-normal">(login)</span></label>
+              <input className="input font-mono" value={form.slug} onChange={set('slug')} required />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
