@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/auth.store'
+import { useAdminAuthStore } from './store/adminAuth.store'
 import Layout from './components/layout/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -8,15 +9,26 @@ import MenuPage from './pages/MenuPage'
 import TablesPage from './pages/TablesPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import AdminLoginPage from './pages/admin/AdminLoginPage'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminRestaurantsPage from './pages/admin/AdminRestaurantsPage'
+import AdminRestaurantDetailPage from './pages/admin/AdminRestaurantDetailPage'
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated } = useAuthStore()
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated } = useAdminAuthStore()
+  return isAuthenticated ? children : <Navigate to="/admin/login" replace />
+}
+
 export default function App() {
   return (
     <Routes>
+      {/* Backoffice por restaurante */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
@@ -27,6 +39,15 @@ export default function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
+
+      {/* Panel superadmin */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="restaurants" element={<AdminRestaurantsPage />} />
+        <Route path="restaurants/:id" element={<AdminRestaurantDetailPage />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   )

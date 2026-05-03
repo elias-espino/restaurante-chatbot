@@ -86,6 +86,7 @@ app.use('/webhook', webhookLimiter);
 
 // ── Rutas ──────────────────────────────────────────────────
 app.use('/webhook', require('./whatsapp/whatsapp.routes'));
+app.use('/api/admin', require('./admin/admin.routes'));
 app.use('/api/auth', require('./auth/auth.routes'));
 app.use('/api/menu', require('./menu/menu.routes'));
 app.use('/api/orders', require('./orders/orders.routes'));
