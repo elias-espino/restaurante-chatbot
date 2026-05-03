@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Política de Privacidad — Espino Software</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:       #1a1f36;
+      --brand-light: #2d3561;
+      --accent:      #4f6ef7;
+      --accent-2:    #38bdf8;
+      --text:        #1a1f36;
+      --muted:       #64748b;
+      --border:      #e2e8f0;
+      --bg:          #f8fafc;
+      --white:       #ffffff;
+      --radius:      10px;
+      --max-w:       760px;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-size: 16px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      background: var(--brand);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-icon svg { width: 18px; height: 18px; fill: #fff; }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: -.01em;
+    }
+
+    .logo-text span { color: var(--accent-2); }
+
+    nav a.nav-link {
+      font-size: 13px;
+      color: rgba(255,255,255,.65);
+      text-decoration: none;
+      transition: color .2s;
+    }
+    nav a.nav-link:hover { color: #fff; }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--brand);
+      padding: 60px 2rem 56px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,110,247,.18);
+      color: var(--accent-2);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(79,110,247,.3);
+    }
+
+    .hero h1 {
+      font-size: clamp(26px, 5vw, 38px);
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.02em;
+      line-height: 1.2;
+      margin-bottom: 14px;
+    }
+
+    .hero p {
+      font-size: 15px;
+      color: rgba(255,255,255,.55);
+      max-width: 500px;
+      margin: 0 auto 20px;
+    }
+
+    .hero-meta {
+      font-size: 12px;
+      color: rgba(255,255,255,.35);
+    }
+
+    /* ── CONTENT ── */
+    .container {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 1.5rem 80px;
+    }
+
+    /* Table of contents */
+    .toc {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      margin: 40px 0 32px;
+    }
+
+    .toc-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 12px;
+    }
+
+    .toc ol {
+      padding-left: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px 24px;
+    }
+
+    .toc ol li a {
+      font-size: 13px;
+      color: var(--accent);
+      text-decoration: none;
+      transition: color .15s;
+    }
+
+    .toc ol li a:hover { color: var(--brand); text-decoration: underline; }
+
+    @media (max-width: 480px) { .toc ol { grid-template-columns: 1fr; } }
+
+    /* Sections */
+    .section {
+      margin-bottom: 36px;
+      scroll-margin-top: 80px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .section-num {
+      width: 30px;
+      height: 30px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .section h2 {
+      font-size: 19px;
+      font-weight: 600;
+      color: var(--brand);
+      letter-spacing: -.01em;
+    }
+
+    .section p, .section li {
+      font-size: 15px;
+      color: #374151;
+      margin-bottom: 10px;
+    }
+
+    .section ul {
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .section ul li::marker { color: var(--accent); }
+
+    /* Info cards */
+    .info-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin: 14px 0;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    .info-card.warning {
+      border-left-color: #f59e0b;
+      background: #fffbeb;
+    }
+
+    .info-card.success {
+      border-left-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .info-card strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--accent);
+    }
+
+    .info-card.warning strong { color: #92400e; }
+    .info-card.success strong { color: #065f46; }
+
+    /* Data table */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 16px 0;
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .data-table th {
+      background: var(--brand);
+      color: rgba(255,255,255,.85);
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #374151;
+      vertical-align: top;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    /* Divider */
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 32px 0;
+    }
+
+    /* Footer */
+    footer {
+      background: var(--brand);
+      padding: 32px 2rem;
+      text-align: center;
+    }
+
+    footer p {
+      font-size: 13px;
+      color: rgba(255,255,255,.45);
+      margin-bottom: 6px;
+    }
+
+    footer a { color: var(--accent-2); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    .footer-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .footer-logo span { color: var(--accent-2); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="https://espino-software.online" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <span class="logo-text">Espino <span>Software</span></span>
+  </a>
+  <a href="https://espino-software.online" class="nav-link">← Volver al inicio</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Privacidad y datos
+  </div>
+  <h1>Política de Privacidad</h1>
+  <p>Chatbox — Sistema de órdenes por WhatsApp para restaurantes</p>
+  <div class="hero-meta">Última actualización: Mayo 2026 &nbsp;·&nbsp; Versión 1.0</div>
+</div>
+
+<!-- CONTENT -->
+<div class="container">
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Contenido</div>
+    <ol>
+      <li><a href="#s1">Quiénes somos</a></li>
+      <li><a href="#s2">Qué datos recopilamos</a></li>
+      <li><a href="#s3">Cómo usamos los datos</a></li>
+      <li><a href="#s4">WhatsApp y Meta</a></li>
+      <li><a href="#s5">Impresión local</a></li>
+      <li><a href="#s6">Compartición de datos</a></li>
+      <li><a href="#s7">Retención de datos</a></li>
+      <li><a href="#s8">Seguridad</a></li>
+      <li><a href="#s9">Tus derechos</a></li>
+      <li><a href="#s10">Contacto</a></li>
+    </ol>
+  </div>
+
+  <div class="info-card">
+    <strong>Resumen rápido</strong>
+    Recopilamos únicamente los datos necesarios para procesar órdenes de restaurantes a través de WhatsApp. No vendemos tu información personal ni la compartimos con terceros con fines comerciales.
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="s1">
+    <div class="section-header">
+      <div class="section-num">1</div>
+      <h2>Quiénes somos</h2>
+    </div>
+    <p><strong>Espino Software</strong> es el responsable del tratamiento de datos personales recopilados a través del sistema <em>Chatbox</em>, una plataforma SaaS de toma de órdenes vía WhatsApp para restaurantes.</p>
+    <p>Nuestro servicio conecta a los clientes finales (comensales) con los restaurantes (nuestros clientes B2B) mediante el API de WhatsApp Cloud de Meta. Espino Software actúa como procesador de datos en nombre de cada restaurante, quien es el responsable final ante sus clientes.</p>
+  </div>
+
+  <hr>
+
+  <!-- 2 -->
+  <div class="section" id="s2">
+    <div class="section-header">
+      <div class="section-num">2</div>
+      <h2>Qué datos recopilamos</h2>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Categoría</th>
+          <th>Dato</th>
+          <th>Fuente</th>
+          <th>Obligatorio</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Identificación</td>
+          <td>Número de teléfono WhatsApp</td>
+          <td>Meta / WhatsApp</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td>Identificación</td>
+          <td>Nombre del cliente</td>
+          <td>El propio usuario</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td>Orden</td>
+          <td>Artículos, cantidades, notas especiales</td>
+          <td>Conversación bot</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td>Logística</td>
+          <td>Dirección de entrega (solo domicilio)</td>
+          <td>El propio usuario</td>
+          <td>Condicional</td>
+        </tr>
+        <tr>
+          <td>Sesión</td>
+          <td>Estado de conversación (temporal)</td>
+          <td>Sistema interno</td>
+          <td>Técnico</td>
+        </tr>
+        <tr>
+          <td>Restaurante</td>
+          <td>Nombre, horarios, menú, moneda</td>
+          <td>El restaurante cliente</td>
+          <td>Sí</td>
+        </tr>
+        <tr>
+          <td>Usuarios backoffice</td>
+          <td>Correo, contraseña (hash), rol</td>
+          <td>El restaurante cliente</td>
+          <td>Sí</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-card warning">
+      <strong>No recopilamos</strong>
+      No almacenamos contenido de conversaciones más allá del estado activo de la sesión (que expira a los 30 minutos de inactividad). No recopilamos datos de pago, información bancaria ni documentos de identidad.
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- 3 -->
+  <div class="section" id="s3">
+    <div class="section-header">
+      <div class="section-num">3</div>
+      <h2>Cómo usamos los datos</h2>
+    </div>
+    <p>Los datos recopilados se utilizan exclusivamente para:</p>
+    <ul>
+      <li>Procesar y registrar órdenes de los comensales en el sistema del restaurante.</li>
+      <li>Enviar notificaciones de estado de la orden al comensal vía WhatsApp (preparando, lista, entregada, cancelada).</li>
+      <li>Mostrar las órdenes en el panel de administración (<em>backoffice</em>) del restaurante.</li>
+      <li>Generar tickets de impresión para la cocina del restaurante.</li>
+      <li>Generar estadísticas agregadas y reportes de ventas para el restaurante.</li>
+      <li>Mantener activa la sesión conversacional durante el proceso de orden (máx. 30 min).</li>
+    </ul>
+    <p>No realizamos perfilado automatizado, publicidad dirigida ni análisis de comportamiento a nivel individual.</p>
+  </div>
+
+  <hr>
+
+  <!-- 4 -->
+  <div class="section" id="s4">
+    <div class="section-header">
+      <div class="section-num">4</div>
+      <h2>WhatsApp y Meta</h2>
+    </div>
+    <p>Chatbox utiliza el <strong>API de WhatsApp Cloud</strong> de Meta Platforms Ireland Ltd. Al enviar un mensaje al número del restaurante, la conversación pasa por la infraestructura de Meta conforme a su propia política de privacidad.</p>
+    <div class="info-card">
+      <strong>Política de Meta</strong>
+      Te recomendamos revisar la Política de Privacidad de Meta en: <a href="https://www.whatsapp.com/legal/privacy-policy" target="_blank" rel="noopener">whatsapp.com/legal/privacy-policy</a>
+    </div>
+    <p>Espino Software actúa como <em>Business Solution Provider</em> y recibe únicamente el contenido del mensaje y el número de teléfono a través de webhooks seguros de Meta. No tenemos acceso al historial completo de chats del usuario en WhatsApp.</p>
+    <p>Cada restaurante configura su propio número de teléfono de WhatsApp Business. Espino Software almacena el token de acceso del API de forma cifrada para poder enviar mensajes en nombre del restaurante.</p>
+  </div>
+
+  <hr>
+
+  <!-- 5 -->
+  <div class="section" id="s5">
+    <div class="section-header">
+      <div class="section-num">5</div>
+      <h2>Impresión local</h2>
+    </div>
+    <p>Chatbox incluye un <strong>agente de impresión local</strong> (software instalado en el restaurante) que se conecta al servidor en la nube para recibir los trabajos de impresión y enviarlos a la impresora térmica USB del establecimiento.</p>
+    <ul>
+      <li>El agente se autentica con un token único por impresora; nunca transmite datos del negocio hacia terceros.</li>
+      <li>Los tickets impresos contienen: número de orden, artículos, tipo de servicio y datos de entrega si aplica.</li>
+      <li>Los trabajos de impresión se almacenan temporalmente en la nube solo hasta confirmar su entrega al agente; luego se marcan como completados.</li>
+    </ul>
+    <div class="info-card success">
+      <strong>Dato que no sale del restaurante</strong>
+      El contenido del ticket impreso se transmite exclusivamente entre nuestros servidores y el agente local del restaurante. No se comparte con ningún proveedor externo.
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- 6 -->
+  <div class="section" id="s6">
+    <div class="section-header">
+      <div class="section-num">6</div>
+      <h2>Compartición de datos</h2>
+    </div>
+    <p>Espino Software <strong>no vende ni alquila</strong> datos personales a terceros. Podemos compartir datos en los siguientes casos limitados:</p>
+    <ul>
+      <li><strong>Con el restaurante cliente:</strong> El restaurante tiene acceso completo a las órdenes de sus propios clientes a través del backoffice. Es el responsable de sus datos ante la ley local.</li>
+      <li><strong>Con proveedores de infraestructura:</strong> Utilizamos servidores de cómputo en la nube (VPS/VM) para alojar el servicio. Estos proveedores no tienen acceso a los datos de las órdenes.</li>
+      <li><strong>Por obligación legal:</strong> Si una autoridad competente lo requiere mediante proceso legal válido.</li>
+    </ul>
+    <p>Todos nuestros sub-procesadores están sujetos a acuerdos de confidencialidad.</p>
+  </div>
+
+  <hr>
+
+  <!-- 7 -->
+  <div class="section" id="s7">
+    <div class="section-header">
+      <div class="section-num">7</div>
+      <h2>Retención de datos</h2>
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Dato</th>
+          <th>Período de retención</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sesión de conversación activa</td>
+          <td>30 minutos desde el último mensaje</td>
+        </tr>
+        <tr>
+          <td>Órdenes completadas</td>
+          <td>Según configuración del restaurante (máx. 2 años)</td>
+        </tr>
+        <tr>
+          <td>Trabajos de impresión</td>
+          <td>Eliminados al confirmar entrega al agente</td>
+        </tr>
+        <tr>
+          <td>Usuarios del backoffice</td>
+          <td>Hasta que el restaurante elimine la cuenta</td>
+        </tr>
+        <tr>
+          <td>Logs del sistema</td>
+          <td>30 días (rotación automática)</td>
+        </tr>
+        <tr>
+          <td>Datos del restaurante</td>
+          <td>Hasta cancelación del servicio + 30 días</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr>
+
+  <!-- 8 -->
+  <div class="section" id="s8">
+    <div class="section-header">
+      <div class="section-num">8</div>
+      <h2>Seguridad</h2>
+    </div>
+    <p>Aplicamos medidas técnicas y organizativas para proteger los datos:</p>
+    <ul>
+      <li>Comunicaciones cifradas con <strong>HTTPS/TLS</strong> en todas las conexiones externas.</li>
+      <li>Autenticación mediante <strong>JWT con expiración</strong> para el backoffice.</li>
+      <li>Tokens de impresora almacenados con hash; nunca expuestos en texto plano.</li>
+      <li>Contraseñas de usuarios hasheadas con <strong>bcrypt</strong>.</li>
+      <li>Base de datos accesible únicamente desde la red interna del servidor.</li>
+      <li>Tokens de API de WhatsApp cifrados en base de datos.</li>
+    </ul>
+    <div class="info-card warning">
+      <strong>Responsabilidad compartida</strong>
+      La seguridad de las credenciales del backoffice (usuario y contraseña) es responsabilidad del restaurante cliente. Recomendamos usar contraseñas fuertes y no compartirlas.
+    </div>
+  </div>
+
+  <hr>
+
+  <!-- 9 -->
+  <div class="section" id="s9">
+    <div class="section-header">
+      <div class="section-num">9</div>
+      <h2>Tus derechos</h2>
+    </div>
+    <p>Dependiendo de la legislación aplicable en tu país (LGPD en México, legislaciones equivalentes en Centroamérica), puedes tener los siguientes derechos:</p>
+    <ul>
+      <li><strong>Acceso:</strong> solicitar qué datos tenemos sobre ti.</li>
+      <li><strong>Rectificación:</strong> corregir datos inexactos.</li>
+      <li><strong>Cancelación / Eliminación:</strong> solicitar la eliminación de tus datos personales.</li>
+      <li><strong>Oposición:</strong> oponerte al tratamiento de tus datos.</li>
+      <li><strong>Portabilidad:</strong> recibir tus datos en formato estructurado.</li>
+    </ul>
+    <p>Para ejercer cualquiera de estos derechos, dirígete directamente al restaurante con el que interactuaste, ya que es el responsable de tus datos. También puedes contactarnos directamente usando los datos de la sección 10.</p>
+    <p>Si eres usuario del backoffice (empleado del restaurante), puedes solicitar al administrador de tu restaurante la modificación o eliminación de tu cuenta.</p>
+  </div>
+
+  <hr>
+
+  <!-- 10 -->
+  <div class="section" id="s10">
+    <div class="section-header">
+      <div class="section-num">10</div>
+      <h2>Contacto</h2>
+    </div>
+    <p>Para cualquier consulta, solicitud o reporte relacionado con privacidad y datos personales, puedes contactarnos a través de:</p>
+    <div class="info-card">
+      <strong>Espino Software — Responsable de Privacidad</strong>
+      Sitio web: <a href="https://espino-software.online" target="_blank">espino-software.online</a><br>
+      Correo: <a href="mailto:privacidad@espino-software.online">privacidad@espino-software.online</a><br>
+      Tiempo de respuesta: máximo 5 días hábiles
+    </div>
+    <p>Nos reservamos el derecho de actualizar esta política en cualquier momento. Las modificaciones se notificarán publicando la nueva versión en esta página con la fecha de actualización correspondiente. El uso continuado del servicio implica la aceptación de los cambios.</p>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Espino <span>Software</span></div>
+  <p>© 2026 Espino Software. Todos los derechos reservados.</p>
+  <p><a href="https://espino-software.online">espino-software.online</a></p>
+</footer>
+
+</body>
+</html>

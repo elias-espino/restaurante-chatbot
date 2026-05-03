@@ -1,6 +1,31 @@
 version: '3.8'
 
 services:
+
+  # ── Traefik — Reverse Proxy + SSL automático ───────
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - proxy
+
   # ── Base de datos MariaDB ──────────────────────────
   db:
     image: mariadb:11
@@ -12,7 +37,7 @@ services:
       MYSQL_USER: ${DB_USER:-chatbot}
       MYSQL_PASSWORD: ${DB_PASSWORD:-chatbot_pass}
     ports:
-      - "3307:3306"
+      - "3307:3306"       # Solo acceso local para debugging
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -20,6 +45,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
 
   # ── Backend ───────────────────────────────────────
   backend:
@@ -28,33 +55,68 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot_backend
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
     environment:
       DATABASE_URL: mysql://root:${DB_ROOT_PASSWORD:-rootpassword}@db:3306/${DB_NAME:-chatbot_db}
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-jwt}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-cambia-este-refresh-secret}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: https://${APP_DOMAIN:-app.espino-software.online}
       PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    networks:
+      - internal          # Solo red interna, el backoffice lo proxea
 
-  # ── Backoffice (build estático con nginx) ─────────
+  # ── Backoffice (nginx sirve React + proxea al backend) ──
   backoffice:
     build:
       context: ./backoffice
       dockerfile: Dockerfile
     container_name: chatbot_backoffice
     restart: unless-stopped
-    ports:
-      - "80:80"
     depends_on:
       - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=chatbot_proxy"
+      # Dominio del backoffice
+      - "traefik.http.routers.backoffice.rule=Host(`${APP_DOMAIN:-app.espino-software.online}`)"
+      - "traefik.http.routers.backoffice.entrypoints=websecure"
+      - "traefik.http.routers.backoffice.tls.certresolver=letsencrypt"
+      - "traefik.http.services.backoffice.loadbalancer.server.port=80"
+    networks:
+      - proxy
+      - internal          # Necesita internal para proxear al backend
+
+  # ── Sitio web principal ───────────────────────────
+  website:
+    image: nginx:alpine
+    container_name: chatbot_website
+    restart: unless-stopped
+    volumes:
+      - ./website:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=chatbot_proxy"
+      # Dominio principal + www
+      - "traefik.http.routers.website.rule=Host(`${WEB_DOMAIN:-espino-software.online}`) || Host(`www.${WEB_DOMAIN:-espino-software.online}`)"
+      - "traefik.http.routers.website.entrypoints=websecure"
+      - "traefik.http.routers.website.tls.certresolver=letsencrypt"
+      - "traefik.http.services.website.loadbalancer.server.port=80"
+      # Redirect www → apex
+      - "traefik.http.middlewares.www-redirect.redirectregex.regex=^https://www\\.(.+)"
+      - "traefik.http.middlewares.www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.routers.website.middlewares=www-redirect"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    name: chatbot_proxy
+  internal:
+    name: chatbot_internal
 
 volumes:
   db_data:
+  letsencrypt:
