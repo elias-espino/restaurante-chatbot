@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-import { Bot } from 'lucide-react'
+import { Bot, Printer, Wifi, WifiOff, Copy, RefreshCw, Trash2, Plus } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -78,12 +78,54 @@ export default function SettingsPage() {
     onError: () => toast.error('Error al guardar'),
   })
 
+  // ── Impresoras ──────────────────────────────────────────
+  const [newPrinter, setNewPrinter] = useState({ name: '', type: 'NETWORK', host: '', port: '9100', paperWidth: '32' })
+  const [showNewPrinter, setShowNewPrinter] = useState(false)
+  const [copiedId, setCopiedId] = useState(null)
+
+  const { data: printers = [], refetch: refetchPrinters } = useQuery({
+    queryKey: ['printers'],
+    queryFn: () => api.get('/print/printers').then(r => r.data.data),
+    enabled: tab === 'impresoras',
+  })
+
+  const createPrinter = useMutation({
+    mutationFn: () => api.post('/print/printers', {
+      name: newPrinter.name,
+      type: newPrinter.type,
+      host: newPrinter.type === 'NETWORK' ? newPrinter.host : undefined,
+      port: newPrinter.type === 'NETWORK' ? parseInt(newPrinter.port) : undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Impresora creada')
+      queryClient.invalidateQueries({ queryKey: ['printers'] })
+      setNewPrinter({ name: '', type: 'NETWORK', host: '', port: '9100', paperWidth: '32' })
+      setShowNewPrinter(false)
+    },
+    onError: () => toast.error('Error al crear impresora'),
+  })
+
+  const flushPrinter = useMutation({
+    mutationFn: (id) => api.post(`/print/printers/${id}/flush`),
+    onSuccess: () => toast.success('Jobs reencolados'),
+    onError: () => toast.error('Error al reencolar'),
+  })
+
+  const copyToken = (token, id) => {
+    navigator.clipboard.writeText(token).then(() => {
+      setCopiedId(id)
+      toast.success('Token copiado')
+      setTimeout(() => setCopiedId(null), 2000)
+    })
+  }
+
   const tabs = [
     { id: 'general', label: 'General' },
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'horarios', label: 'Horarios' },
     { id: 'usuarios', label: 'Usuarios' },
     { id: 'ia', label: '✨ IA' },
+    { id: 'impresoras', label: '🖨️ Impresoras' },
   ]
 
   return (
@@ -260,6 +302,141 @@ export default function SettingsPage() {
           <button className="btn-primary" onClick={() => saveAi.mutate()} disabled={saveAi.isPending}>
             {saveAi.isPending ? 'Guardando...' : 'Guardar configuración IA'}
           </button>
+        </div>
+      )}
+
+      {/* Impresoras */}
+      {tab === 'impresoras' && (
+        <div className="space-y-5 max-w-2xl">
+
+          {/* Info print-agent */}
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 space-y-1">
+            <p className="font-semibold flex items-center gap-2"><Printer size={15} /> ¿Cómo funciona?</p>
+            <p>Cada impresora necesita un <strong>Print Agent</strong> corriendo en la computadora del restaurante. El agente se conecta al backend usando el <strong>Agent Token</strong> y recibe los tickets automáticamente cuando se confirma una orden.</p>
+            <p className="text-xs text-amber-600 mt-1">Descarga: <code className="bg-white px-1 rounded">restaurant-chatbot/print-agent/</code> → copia el token → corre <code className="bg-white px-1 rounded">npm start</code></p>
+          </div>
+
+          {/* Lista de impresoras */}
+          <div className="card divide-y divide-gray-100">
+            <div className="px-5 py-3 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Impresoras registradas</h2>
+              <div className="flex items-center gap-2">
+                <button onClick={() => refetchPrinters()} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                  <RefreshCw size={15} />
+                </button>
+                <button onClick={() => setShowNewPrinter(v => !v)} className="btn-primary flex items-center gap-1.5 text-sm py-1.5">
+                  <Plus size={14} /> Nueva impresora
+                </button>
+              </div>
+            </div>
+
+            {/* Form nueva impresora */}
+            {showNewPrinter && (
+              <div className="px-5 py-4 bg-gray-50 space-y-3">
+                <h3 className="text-sm font-semibold text-gray-700">Agregar impresora</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Nombre</label>
+                    <input className="input" placeholder="Cocina principal" value={newPrinter.name} onChange={e => setNewPrinter(p => ({ ...p, name: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Tipo de conexión</label>
+                    <select className="input" value={newPrinter.type} onChange={e => setNewPrinter(p => ({ ...p, type: e.target.value }))}>
+                      <option value="NETWORK">Red (IP/WiFi) — recomendado</option>
+                      <option value="USB">USB</option>
+                    </select>
+                  </div>
+                  {newPrinter.type === 'NETWORK' && (
+                    <>
+                      <div>
+                        <label className="label">IP de la impresora</label>
+                        <input className="input font-mono" placeholder="192.168.1.100" value={newPrinter.host} onChange={e => setNewPrinter(p => ({ ...p, host: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="label">Puerto</label>
+                        <input className="input font-mono" placeholder="9100" value={newPrinter.port} onChange={e => setNewPrinter(p => ({ ...p, port: e.target.value }))} />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button className="btn-primary text-sm" onClick={() => createPrinter.mutate()} disabled={!newPrinter.name || createPrinter.isPending}>
+                    {createPrinter.isPending ? 'Guardando...' : 'Guardar impresora'}
+                  </button>
+                  <button className="btn-secondary text-sm" onClick={() => setShowNewPrinter(false)}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Listado */}
+            {printers.length === 0 && !showNewPrinter && (
+              <div className="px-5 py-10 text-center text-sm text-gray-400">
+                <Printer size={32} className="mx-auto mb-2 opacity-30" />
+                No hay impresoras configuradas. Agrega la primera.
+              </div>
+            )}
+
+            {printers.map(p => (
+              <div key={p.id} className="px-5 py-4 flex items-start gap-4">
+                <div className="mt-0.5">
+                  {p.isOnline
+                    ? <Wifi size={18} className="text-green-500" />
+                    : <WifiOff size={18} className="text-gray-300" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-gray-900">{p.name}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {p.isOnline ? 'Online' : 'Offline'}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">{p.type}</span>
+                  </div>
+                  {p.host && (
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono">{p.host}:{p.port}</p>
+                  )}
+
+                  {/* Agent Token */}
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 bg-gray-100 rounded-lg px-3 py-1.5 flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-500 font-mono truncate">{p.agentToken || '—'}</span>
+                      {p.agentToken && (
+                        <button onClick={() => copyToken(p.agentToken, p.id)} className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors">
+                          {copiedId === p.id ? <span className="text-xs text-green-600 font-medium">✓</span> : <Copy size={13} />}
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400">Agent Token</span>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => flushPrinter.mutate(p.id)}
+                    title="Reencolar jobs pendientes"
+                    className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
+                    <RefreshCw size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Guía de configuración del agente */}
+          <div className="card p-5 space-y-3">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Printer size={16} /> Configurar el Print Agent</h3>
+            <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
+              <li>Abre la carpeta <code className="bg-gray-100 px-1 rounded text-xs">restaurant-chatbot/print-agent/</code></li>
+              <li>Copia <code className="bg-gray-100 px-1 rounded text-xs">.env.example</code> → <code className="bg-gray-100 px-1 rounded text-xs">.env</code></li>
+              <li>Pega el <strong>Agent Token</strong> de la impresora en <code className="bg-gray-100 px-1 rounded text-xs">AGENT_TOKEN</code></li>
+              <li>Configura <code className="bg-gray-100 px-1 rounded text-xs">PRINTER_TYPE</code> (USB o NETWORK) y la URL del backend</li>
+              <li>Corre <code className="bg-gray-100 px-1 rounded text-xs font-mono">npm install && npm start</code></li>
+              <li>La impresora aparecerá como <strong>Online</strong> aquí en segundos</li>
+            </ol>
+            <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+              💡 En <strong>Mac</strong>: usa PRINTER_TYPE=NETWORK (más estable). Para USB en Mac, instala primero <code className="bg-white px-1 rounded">brew install libusb</code>.
+            </div>
+          </div>
         </div>
       )}
 
