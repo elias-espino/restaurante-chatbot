@@ -9,6 +9,7 @@ import MenuPage from './pages/MenuPage'
 import TablesPage from './pages/TablesPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
+import IncidenciasPage from './pages/IncidenciasPage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="tables" element={<TablesPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="incidencias" element={<IncidenciasPage />} />
       </Route>
 
       {/* Panel superadmin */}

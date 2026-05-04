@@ -40,6 +40,7 @@ model Restaurant {
   orders         Order[]
   users          User[]
   printJobs      PrintJob[]
+  incidencias    Incidencia[]
 
   @@map("restaurants")
 }
@@ -301,4 +302,29 @@ enum UserRole {
   ADMIN
   STAFF
   VIEWER
+}
+
+// ─────────────────────────────────────────────
+// INCIDENCIAS (escalación IA → humano)
+// ─────────────────────────────────────────────
+model Incidencia {
+  id               String           @id @default(uuid())
+  restaurantId     String
+  phoneNumber      String
+  customerName     String?
+  status           IncidenciaStatus @default(OPEN)
+  messages         Json             @default("[]")
+  resolvedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  restaurant       Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("incidencias")
+}
+
+enum IncidenciaStatus {
+  OPEN
+  ANSWERED
+  CLOSED
 }

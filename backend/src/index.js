@@ -92,6 +92,7 @@ app.use('/api/menu', require('./menu/menu.routes'));
 app.use('/api/orders', require('./orders/orders.routes'));
 app.use('/api/restaurant', require('./restaurants/restaurants.routes'));
 app.use('/api/print', require('./print/print.routes'));
+app.use('/api/incidencias', require('./incidents/incidents.routes'));
 
 // Health check
 app.get('/health', (req, res) => {

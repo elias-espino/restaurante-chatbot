@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { chat } = require('./gemini.service');
 const { sendText } = require('../whatsapp/whatsapp.api');
 const { createPrintJob } = require('../print/print.service');
+const { createIncidencia } = require('../incidents/incidents.controller');
 const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
@@ -241,11 +242,22 @@ const handleAiMessage = async (restaurant, config, message) => {
     let newOrderId = currentOrderId;
     if (action) {
       try {
-        const result = await executeAction(action, restaurant.id, phoneNumber);
-        if (result && action.action === 'place_order') newOrderId = result.id;
+        if (action.action === 'escalate_to_human') {
+          // Crear incidencia y notificar al backoffice en tiempo real
+          await createIncidencia({
+            restaurantId: restaurant.id,
+            phoneNumber,
+            customerName: null,
+            aiQuestion: action.question || userText,
+          });
+          logger.info(`[AI] Escalación creada para ${phoneNumber} — restaurante ${restaurant.id}`);
+        } else {
+          const result = await executeAction(action, restaurant.id, phoneNumber);
+          if (result && action.action === 'place_order') newOrderId = result.id;
+        }
       } catch (err) {
         logger.error('[AI] Error ejecutando acción:', err.message);
-        await send(`❌ Hubo un problema al procesar tu orden: ${err.message}`);
+        await send(`❌ Hubo un problema al procesar tu solicitud: ${err.message}`);
         return;
       }
     }

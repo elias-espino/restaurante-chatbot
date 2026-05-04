@@ -1,24 +1,43 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Table2, BarChart3, Settings, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, UtensilsCrossed, Table2, BarChart3, Settings, LogOut, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useSocketStore } from '../../hooks/useSocket'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/orders', icon: ShoppingBag, label: 'Órdenes' },
-  { to: '/menu', icon: UtensilsCrossed, label: 'Menú' },
-  { to: '/tables', icon: Table2, label: 'Mesas' },
-  { to: '/reports', icon: BarChart3, label: 'Reportes' },
-  { to: '/settings', icon: Settings, label: 'Configuración' },
+  { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/orders',       icon: ShoppingBag,     label: 'Órdenes' },
+  { to: '/menu',         icon: UtensilsCrossed, label: 'Menú' },
+  { to: '/tables',       icon: Table2,          label: 'Mesas' },
+  { to: '/reports',      icon: BarChart3,       label: 'Reportes' },
+  { to: '/incidencias',  icon: AlertTriangle,   label: 'Incidencias', badge: true },
+  { to: '/settings',     icon: Settings,        label: 'Configuración' },
 ]
 
 export default function Layout() {
   const { user, restaurant, logout } = useAuthStore()
   const navigate = useNavigate()
   const { connected, connect } = useSocketStore()
+  const [openIncidencias, setOpenIncidencias] = useState(0)
 
   useEffect(() => { connect(restaurant?.id) }, [restaurant?.id])
+
+  // Contar incidencias abiertas en tiempo real
+  useEffect(() => {
+    const onNew = () => setOpenIncidencias(n => n + 1)
+    const onUpdated = (e) => {
+      const inc = e.detail
+      if (inc.status === 'CLOSED' || inc.status === 'ANSWERED') {
+        setOpenIncidencias(n => Math.max(0, n - 1))
+      }
+    }
+    window.addEventListener('incidencia:new', onNew)
+    window.addEventListener('incidencia:updated', onUpdated)
+    return () => {
+      window.removeEventListener('incidencia:new', onNew)
+      window.removeEventListener('incidencia:updated', onUpdated)
+    }
+  }, [])
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -39,7 +58,7 @@ export default function Layout() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {navItems.map(({ to, icon: Icon, label, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -51,6 +70,11 @@ export default function Layout() {
             >
               <Icon size={18} />
               {label}
+              {badge && openIncidencias > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                  {openIncidencias}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

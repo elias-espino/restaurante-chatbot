@@ -29,6 +29,14 @@ export const useSocketStore = create((set, get) => ({
     socket.on('order:updated', (order) => {
       window.dispatchEvent(new CustomEvent('order:updated', { detail: order }))
     })
+
+    socket.on('incidencia:new', (inc) => {
+      window.dispatchEvent(new CustomEvent('incidencia:new', { detail: inc }))
+    })
+
+    socket.on('incidencia:updated', (inc) => {
+      window.dispatchEvent(new CustomEvent('incidencia:updated', { detail: inc }))
+    })
   },
 
   disconnect: () => {
