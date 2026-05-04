@@ -72,6 +72,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
       where: { id: { in: menuItemIds }, restaurantId, isActive: true },
     });
     const validIds = new Set(validItems.map(i => i.id));
+    const dbNames = new Map(validItems.map(i => [i.id, i.name]));
 
     const filteredItems = action.items.filter(i => validIds.has(i.menuItemId));
     if (filteredItems.length === 0) throw new Error('Ningún item válido en la orden');
@@ -115,7 +116,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
         items: {
           create: validOrderItems.map(i => ({
             menuItemId: i.menuItemId,
-            name: i.name,
+            name: dbNames.get(i.menuItemId) || i.name,
             price: i.price,
             quantity: i.quantity,
           })),
@@ -146,6 +147,13 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
     const io = global.io;
     if (io) io.to(`restaurant:${restaurantId}`).emit('order:modifying', { orderId: order.id });
 
+    // Resolver nombres reales desde la BD para evitar que la IA los abrevie
+    const modItemIds = action.items.map(i => i.menuItemId);
+    const modDbItems = await prisma.menuItem.findMany({
+      where: { id: { in: modItemIds }, restaurantId, isActive: true },
+    });
+    const modDbNames = new Map(modDbItems.map(i => [i.id, i.name]));
+
     // Consolidar duplicados en modify también
     const consolidatedMod = new Map();
     for (const item of action.items) {
@@ -171,7 +179,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
         items: {
           create: modItems.map(i => ({
             menuItemId: i.menuItemId,
-            name: i.name,
+            name: modDbNames.get(i.menuItemId) || i.name,
             price: i.price,
             quantity: i.quantity,
           })),
