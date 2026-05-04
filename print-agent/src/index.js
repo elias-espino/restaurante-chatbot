@@ -12,4 +12,15 @@ logger.info('🖨️  Print Agent iniciando...');
 logger.info(`   Tipo impresora : ${process.env.PRINTER_TYPE || 'USB'}`);
 logger.info(`   Backend URL    : ${process.env.BACKEND_URL || 'http://localhost:3000'}`);
 
+// ── Capturar errores globales para que el proceso nunca muera ──
+process.on('uncaughtException', (err) => {
+  logger.error(`💥 Error no capturado: ${err.message}\n${err.stack}`);
+  logger.warn('⚠️  El agente sigue corriendo a pesar del error.');
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error(`💥 Promesa rechazada sin capturar: ${reason}`);
+  logger.warn('⚠️  El agente sigue corriendo a pesar del error.');
+});
+
 connect();

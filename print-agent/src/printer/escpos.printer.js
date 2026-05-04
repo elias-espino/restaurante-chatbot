@@ -37,9 +37,19 @@ const printTicket = (payload) => {
 
     const printer = new escpos.Printer(device, { encoding: 'utf8' });
 
+    const safeClose = () => { try { device.close(); } catch (_) {} };
+
+    // Timeout de seguridad: si la impresora no responde en 15s, rechazar
+    const timeout = setTimeout(() => {
+      safeClose();
+      reject(new Error('Timeout: la impresora no respondió en 15 segundos'));
+    }, 15000);
+
     device.open((openErr) => {
       if (openErr) {
-        logger.error('Error abriendo dispositivo:', openErr);
+        clearTimeout(timeout);
+        logger.error('Error abriendo dispositivo:', openErr.message || openErr);
+        safeClose();
         return reject(openErr);
       }
 
@@ -106,13 +116,15 @@ const printTicket = (payload) => {
           .text(' ')
           .cut()
           .close(() => {
+            clearTimeout(timeout);
             logger.info(`✅ Ticket impreso: #${payload.orderNumber}`);
             resolve(true);
           });
 
       } catch (printErr) {
-        logger.error('Error durante impresión:', printErr);
-        try { device.close(); } catch (_) {}
+        clearTimeout(timeout);
+        logger.error('Error durante impresión:', printErr.message || printErr);
+        safeClose();
         reject(printErr);
       }
     });

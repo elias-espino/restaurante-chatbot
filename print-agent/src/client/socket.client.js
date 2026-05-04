@@ -35,15 +35,28 @@ const connect = () => {
     logger.error('Verifica el AGENT_TOKEN en el .env');
   });
 
-  // Recibir job de impresión
+  // Recibir job de impresión — con reintentos automáticos
   socket.on('print:job', async ({ jobId, payload }) => {
     logger.info(`📥 Job recibido: ${jobId} — Orden #${payload.orderNumber}`);
-    try {
-      await printTicket(payload);
-      socket.emit('print:result', { jobId, success: true });
-    } catch (err) {
-      logger.error(`❌ Error imprimiendo job ${jobId}:`, err.message);
-      socket.emit('print:result', { jobId, success: false, error: err.message });
+
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 3000; // ms entre reintentos
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        await printTicket(payload);
+        socket.emit('print:result', { jobId, success: true });
+        return; // éxito, salir del loop
+      } catch (err) {
+        const errMsg = err.message || String(err);
+        if (attempt < MAX_RETRIES) {
+          logger.warn(`⚠️  Intento ${attempt}/${MAX_RETRIES} fallido para job ${jobId}: ${errMsg}. Reintentando en ${RETRY_DELAY / 1000}s...`);
+          await new Promise(r => setTimeout(r, RETRY_DELAY));
+        } else {
+          logger.error(`❌ Job ${jobId} fallido tras ${MAX_RETRIES} intentos: ${errMsg}\n${err.stack || ''}`);
+          socket.emit('print:result', { jobId, success: false, error: errMsg });
+        }
+      }
     }
   });
 
