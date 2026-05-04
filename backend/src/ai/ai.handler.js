@@ -202,7 +202,13 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
 const handleAiMessage = async (restaurant, config, message) => {
   const { from: phoneNumber, type } = message;
 
-  // Solo texto por ahora
+  const send = (text) => sendText(config.phoneNumberId, config.accessToken, phoneNumber, text);
+
+  if (type === 'audio') {
+    await send('Lo siento, por el momento solo acepto mensajes de texto. Por favor escribe tu pedido. 😊');
+    return;
+  }
+
   let userText = '';
   if (type === 'text') userText = message.text?.body?.trim() || '';
   else if (type === 'interactive') {
@@ -210,8 +216,6 @@ const handleAiMessage = async (restaurant, config, message) => {
                message.interactive?.list_reply?.title || '';
   }
   if (!userText) return;
-
-  const send = (text) => sendText(config.phoneNumberId, config.accessToken, phoneNumber, text);
 
   try {
     const session = await getAiSession(restaurant.id, phoneNumber);
