@@ -1,0 +1,244 @@
+const { PrismaClient } = require('@prisma/client');
+const { chat } = require('./gemini.service');
+const { sendText } = require('../whatsapp/whatsapp.api');
+const { createPrintJob } = require('../print/print.service');
+const logger = require('../utils/logger');
+
+const prisma = new PrismaClient();
+
+// ─────────────────────────────────────────────
+// Obtener o iniciar sesión de conversación IA
+// ─────────────────────────────────────────────
+const getAiSession = async (restaurantId, phoneNumber) => {
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 horas
+
+  let session = await prisma.conversationSession.findUnique({
+    where: { restaurantId_phoneNumber: { restaurantId, phoneNumber } },
+  });
+
+  if (!session || new Date(session.expiresAt) < new Date()) {
+    session = await prisma.conversationSession.upsert({
+      where: { restaurantId_phoneNumber: { restaurantId, phoneNumber } },
+      create: {
+        restaurantId,
+        phoneNumber,
+        state: 'AI_CHAT',
+        cart: [],
+        data: { conversationHistory: [], currentOrderId: null },
+        expiresAt,
+      },
+      update: {
+        state: 'AI_CHAT',
+        cart: [],
+        data: { conversationHistory: [], currentOrderId: null },
+        expiresAt,
+      },
+    });
+  }
+
+  return session;
+};
+
+const updateAiSession = async (restaurantId, phoneNumber, conversationHistory, currentOrderId) => {
+  const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  await prisma.conversationSession.update({
+    where: { restaurantId_phoneNumber: { restaurantId, phoneNumber } },
+    data: {
+      data: { conversationHistory, currentOrderId: currentOrderId || null },
+      expiresAt,
+    },
+  });
+};
+
+// ─────────────────────────────────────────────
+// Ejecutar acción: crear o modificar orden
+// ─────────────────────────────────────────────
+const generateOrderNumber = async (restaurantId) => {
+  const today = new Date();
+  const prefix = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const start = new Date(today.setHours(0, 0, 0, 0));
+  const count = await prisma.order.count({ where: { restaurantId, createdAt: { gte: start } } });
+  return `${prefix}-${String(count + 1).padStart(3, '0')}`;
+};
+
+const executeAction = async (action, restaurantId, phoneNumber) => {
+  if (action.action === 'place_order') {
+    const orderNumber = await generateOrderNumber(restaurantId);
+
+    // Resolver IDs de menuItems y validar que pertenecen al restaurante
+    const menuItemIds = action.items.map(i => i.menuItemId);
+    const validItems = await prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds }, restaurantId, isActive: true },
+    });
+    const validIds = new Set(validItems.map(i => i.id));
+
+    const validOrderItems = action.items.filter(i => validIds.has(i.menuItemId));
+    if (validOrderItems.length === 0) throw new Error('Ningún item válido en la orden');
+
+    const subtotal = validOrderItems.reduce((sum, i) => sum + (Number(i.price) * i.quantity), 0);
+
+    // Resolver mesa si aplica
+    let tableId = null;
+    if (action.serviceType === 'DINE_IN' && action.tableNumber) {
+      const table = await prisma.table.findFirst({
+        where: { restaurantId, number: String(action.tableNumber) },
+      });
+      tableId = table?.id || null;
+    }
+
+    const order = await prisma.order.create({
+      data: {
+        restaurantId,
+        orderNumber,
+        customerPhone: phoneNumber,
+        customerName: action.customerName || null,
+        serviceType: action.serviceType || 'TAKEAWAY',
+        tableId,
+        deliveryAddress: action.deliveryAddress || null,
+        status: 'CONFIRMED',
+        subtotal,
+        tax: 0,
+        total: subtotal,
+        confirmedAt: new Date(),
+        items: {
+          create: validOrderItems.map(i => ({
+            menuItemId: i.menuItemId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+        },
+      },
+      include: { items: true, table: true },
+    });
+
+    // Imprimir y emitir al backoffice
+    await createPrintJob(restaurantId, order);
+    const io = global.io;
+    if (io) io.to(`restaurant:${restaurantId}`).emit('order:new', order);
+
+    logger.info(`[AI] Orden #${orderNumber} creada — restaurante ${restaurantId}`);
+    return order;
+  }
+
+  if (action.action === 'modify_order') {
+    const order = await prisma.order.findFirst({
+      where: { id: action.orderId, restaurantId },
+    });
+    if (!order) throw new Error('Orden no encontrada');
+    if (['PREPARING', 'READY', 'DELIVERED', 'CANCELLED'].includes(order.status)) {
+      throw new Error('La orden ya no puede modificarse');
+    }
+
+    // Emitir "modificando" al backoffice
+    const io = global.io;
+    if (io) io.to(`restaurant:${restaurantId}`).emit('order:modifying', { orderId: order.id });
+
+    // Recalcular
+    const subtotal = action.items.reduce((sum, i) => sum + (Number(i.price) * i.quantity), 0);
+
+    // Reemplazar items
+    await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        subtotal,
+        total: subtotal,
+        deliveryAddress: action.deliveryAddress !== undefined ? action.deliveryAddress : order.deliveryAddress,
+        updatedAt: new Date(),
+        items: {
+          create: action.items.map(i => ({
+            menuItemId: i.menuItemId,
+            name: i.name,
+            price: i.price,
+            quantity: i.quantity,
+          })),
+        },
+      },
+      include: { items: true, table: true },
+    });
+
+    if (io) io.to(`restaurant:${restaurantId}`).emit('order:updated', updated);
+    logger.info(`[AI] Orden #${order.orderNumber} modificada — restaurante ${restaurantId}`);
+    return updated;
+  }
+};
+
+// ─────────────────────────────────────────────
+// Handler principal
+// ─────────────────────────────────────────────
+const handleAiMessage = async (restaurant, config, message) => {
+  const { from: phoneNumber, type } = message;
+
+  // Solo texto por ahora
+  let userText = '';
+  if (type === 'text') userText = message.text?.body?.trim() || '';
+  else if (type === 'interactive') {
+    userText = message.interactive?.button_reply?.title ||
+               message.interactive?.list_reply?.title || '';
+  }
+  if (!userText) return;
+
+  const send = (text) => sendText(config.phoneNumberId, config.accessToken, phoneNumber, text);
+
+  try {
+    const session = await getAiSession(restaurant.id, phoneNumber);
+    const sessionData = session.data || {};
+    const conversationHistory = sessionData.conversationHistory || [];
+    const currentOrderId = sessionData.currentOrderId || null;
+
+    // Cargar orden activa si existe
+    let currentOrder = null;
+    if (currentOrderId) {
+      currentOrder = await prisma.order.findFirst({
+        where: { id: currentOrderId, restaurantId: restaurant.id },
+        include: { items: true },
+      });
+      // Si la orden ya está muy avanzada, no la pasamos como modificable
+      if (currentOrder && ['DELIVERED', 'CANCELLED'].includes(currentOrder.status)) {
+        currentOrder = null;
+      }
+    }
+
+    // Llamar a Gemini
+    const { message: aiMessage, action } = await chat({
+      restaurant,
+      whatsappConfig: config,
+      conversationHistory,
+      newMessage: userText,
+      currentOrder,
+    });
+
+    // Actualizar historial
+    const updatedHistory = [
+      ...conversationHistory,
+      { role: 'user', content: userText },
+      { role: 'assistant', content: aiMessage },
+    ].slice(-40); // Mantener últimos 40 mensajes para no explotar el contexto
+
+    // Ejecutar acción si la hay
+    let newOrderId = currentOrderId;
+    if (action) {
+      try {
+        const result = await executeAction(action, restaurant.id, phoneNumber);
+        if (result && action.action === 'place_order') newOrderId = result.id;
+      } catch (err) {
+        logger.error('[AI] Error ejecutando acción:', err.message);
+        await send(`❌ Hubo un problema al procesar tu orden: ${err.message}`);
+        return;
+      }
+    }
+
+    // Guardar historial actualizado
+    await updateAiSession(restaurant.id, phoneNumber, updatedHistory, newOrderId);
+
+    // Enviar respuesta al cliente
+    await send(aiMessage);
+
+  } catch (err) {
+    logger.error('[AI] Error en handleAiMessage:', err.message);
+    await send('Lo siento, tuve un problema. Por favor intenta de nuevo en un momento. 🙏');
+  }
+};
+
+module.exports = { handleAiMessage };

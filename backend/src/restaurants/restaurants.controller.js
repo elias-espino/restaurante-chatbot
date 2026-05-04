@@ -130,4 +130,30 @@ const upsertTable = async (req, res) => {
   }
 };
 
-module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable };
+const getAiConfig = async (req, res) => {
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.restaurantId },
+      select: { aiEnabled: true, aiPersonality: true },
+    });
+    return success(res, restaurant);
+  } catch (err) {
+    return error(res, 'Error al obtener configuración IA', 500);
+  }
+};
+
+const updateAiConfig = async (req, res) => {
+  try {
+    const { aiEnabled, aiPersonality } = req.body;
+    const updated = await prisma.restaurant.update({
+      where: { id: req.restaurantId },
+      data: { aiEnabled, aiPersonality },
+      select: { aiEnabled: true, aiPersonality: true },
+    });
+    return success(res, updated, 'Configuración IA actualizada');
+  } catch (err) {
+    return error(res, 'Error al actualizar configuración IA', 500);
+  }
+};
+
+module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable, getAiConfig, updateAiConfig };

@@ -87,16 +87,34 @@ const getRestaurants = async (req, res) => {
     }
     if (active !== undefined) where.isActive = active === 'true';
 
+    // Rango del mes actual para órdenes
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
     const restaurants = await prisma.restaurant.findMany({
       where,
       include: {
         _count: { select: { orders: true, users: true, menuItems: true } },
         whatsappConfig: { select: { isActive: true, phoneNumber: true } },
+        orders: {
+          where: { createdAt: { gte: monthStart, lt: monthEnd }, status: { not: 'CANCELLED' } },
+          select: { id: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return success(res, restaurants);
+    // Calcular estimado de costo IA por restaurante ($ 0.003 por orden)
+    const AI_COST_PER_ORDER = 0.003;
+    const result = restaurants.map(r => ({
+      ...r,
+      ordersThisMonth: r.orders.length,
+      estimatedAiCostUSD: r.aiEnabled ? parseFloat((r.orders.length * AI_COST_PER_ORDER).toFixed(4)) : 0,
+      orders: undefined, // no exponer el array crudo
+    }));
+
+    return success(res, result);
   } catch (err) {
     logger.error('Admin getRestaurants:', err);
     return error(res, 'Error al obtener restaurantes', 500);
@@ -186,7 +204,7 @@ const createRestaurant = async (req, res) => {
 const updateRestaurant = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug, address, phone, currency, timezone, isActive } = req.body;
+    const { name, slug, address, phone, currency, timezone, isActive, aiEnabled, aiPersonality } = req.body;
 
     const exists = await prisma.restaurant.findUnique({ where: { id } });
     if (!exists) return error(res, 'Restaurante no encontrado', 404);
@@ -198,7 +216,7 @@ const updateRestaurant = async (req, res) => {
 
     const updated = await prisma.restaurant.update({
       where: { id },
-      data: { name, slug, address, phone, currency, timezone, isActive },
+      data: { name, slug, address, phone, currency, timezone, isActive, aiEnabled, aiPersonality },
     });
 
     logger.info(`Restaurante actualizado: ${updated.name} — isActive: ${updated.isActive}`);

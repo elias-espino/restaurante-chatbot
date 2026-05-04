@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
+import { Bot } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -64,11 +65,25 @@ export default function SettingsPage() {
     onError: (err) => toast.error(err.response?.data?.message || 'Error al crear usuario'),
   })
 
+  const { data: aiConfig } = useQuery({
+    queryKey: ['ai-config'],
+    queryFn: () => api.get('/restaurant/ai').then(r => r.data.data),
+  })
+  const [aiForm, setAiForm] = useState({ aiEnabled: false, aiPersonality: '' })
+  useEffect(() => { if (aiConfig) setAiForm({ aiEnabled: aiConfig.aiEnabled, aiPersonality: aiConfig.aiPersonality || '' }) }, [aiConfig])
+
+  const saveAi = useMutation({
+    mutationFn: () => api.put('/restaurant/ai', aiForm),
+    onSuccess: () => { toast.success('Configuración IA guardada'); queryClient.invalidateQueries({ queryKey: ['ai-config'] }) },
+    onError: () => toast.error('Error al guardar'),
+  })
+
   const tabs = [
     { id: 'general', label: 'General' },
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'horarios', label: 'Horarios' },
     { id: 'usuarios', label: 'Usuarios' },
+    { id: 'ia', label: '✨ IA' },
   ]
 
   return (
@@ -194,6 +209,57 @@ export default function SettingsPage() {
             </div>
           ))}
           <button className="btn-primary mt-2" onClick={() => saveSchedules.mutate()}>Guardar horarios</button>
+        </div>
+      )}
+
+      {/* IA */}
+      {tab === 'ia' && (
+        <div className="card p-5 max-w-lg space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-purple-50 rounded-lg"><Bot size={20} className="text-purple-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Asistente con IA</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Cuando está activo, Gemini responde a tus clientes en lenguaje natural en lugar del bot con botones.</p>
+            </div>
+          </div>
+
+          {/* Toggle */}
+          <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Activar IA</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {aiForm.aiEnabled ? '✅ Los clientes hablan con Gemini' : '⚙️ Usando bot con botones (clásico)'}
+              </p>
+            </div>
+            <div
+              onClick={() => setAiForm(f => ({ ...f, aiEnabled: !f.aiEnabled }))}
+              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer ${aiForm.aiEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${aiForm.aiEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+            </div>
+          </label>
+
+          {/* Personalidad */}
+          <div>
+            <label className="label">Personalidad del asistente</label>
+            <textarea
+              className="input"
+              rows={4}
+              placeholder="Ej: Sé muy amigable, usa emojis y llama al cliente por su nombre. Sugiere el plato del día cuando sea posible."
+              value={aiForm.aiPersonality}
+              onChange={e => setAiForm(f => ({ ...f, aiPersonality: e.target.value }))}
+            />
+            <p className="text-xs text-gray-400 mt-1">Describe cómo quieres que el asistente hable con tus clientes. Si lo dejas vacío, usará un tono amigable por defecto.</p>
+          </div>
+
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 space-y-1">
+            <p>💡 <strong>El asistente ya conoce tu menú completo</strong> — no necesitas configurar nada más.</p>
+            <p>💡 <strong>Modificación de órdenes:</strong> si el cliente escribe antes de que su orden pase a "Preparando", la IA puede modificarla automáticamente.</p>
+          </div>
+
+          <button className="btn-primary" onClick={() => saveAi.mutate()} disabled={saveAi.isPending}>
+            {saveAi.isPending ? 'Guardando...' : 'Guardar configuración IA'}
+          </button>
         </div>
       )}
 

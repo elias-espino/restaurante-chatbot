@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Save, KeyRound, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, Save, KeyRound, ToggleLeft, ToggleRight, Bot } from 'lucide-react'
 import adminApi from '../../lib/adminApi'
 import toast from 'react-hot-toast'
 
@@ -19,8 +19,12 @@ export default function AdminRestaurantDetailPage() {
   })
 
   const [form, setForm] = useState(null)
+  const [aiForm, setAiForm] = useState(null)
+  const [savingAi, setSavingAi] = useState(false)
+
   if (r && !form) {
     setForm({ name: r.name, slug: r.slug, address: r.address || '', phone: r.phone || '', currency: r.currency, timezone: r.timezone })
+    setAiForm({ aiEnabled: r.aiEnabled || false, aiPersonality: r.aiPersonality || '' })
   }
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
@@ -173,6 +177,58 @@ export default function AdminRestaurantDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Configuración IA */}
+      {aiForm && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <Bot size={16} className="text-purple-600" />
+            <h2 className="font-semibold text-gray-900">Asistente IA</h2>
+            <span className={`ml-auto text-xs font-medium px-2 py-0.5 rounded-full ${aiForm.aiEnabled ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+              {aiForm.aiEnabled ? 'Activada' : 'Desactivada'}
+            </span>
+          </div>
+          <div className="p-5 space-y-4">
+            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer">
+              <span className="text-sm font-medium text-gray-900">Activar IA para este cliente</span>
+              <div
+                onClick={() => setAiForm(f => ({ ...f, aiEnabled: !f.aiEnabled }))}
+                className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${aiForm.aiEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${aiForm.aiEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </div>
+            </label>
+            <div>
+              <label className="label">Personalidad del asistente</label>
+              <textarea
+                className="input"
+                rows={3}
+                placeholder="Ej: Sé amigable y usa emojis. Sugiere el plato del día cuando sea posible."
+                value={aiForm.aiPersonality}
+                onChange={e => setAiForm(f => ({ ...f, aiPersonality: e.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end">
+              <button
+                disabled={savingAi}
+                onClick={async () => {
+                  setSavingAi(true)
+                  try {
+                    await adminApi.put(`/restaurants/${id}`, aiForm)
+                    toast.success('Configuración IA guardada')
+                    queryClient.invalidateQueries({ queryKey: ['admin-restaurant', id] })
+                    queryClient.invalidateQueries({ queryKey: ['admin-restaurants'] })
+                  } catch { toast.error('Error al guardar') }
+                  finally { setSavingAi(false) }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                <Bot size={15} /> {savingAi ? 'Guardando...' : 'Guardar config IA'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Reset password admin */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
