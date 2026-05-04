@@ -60,7 +60,8 @@ ${menuText}
 7. Moneda del restaurante: ${restaurant.currency}
 8. CANTIDADES: Cada item debe aparecer UNA SOLA VEZ en el array "items" con su cantidad en el campo "quantity". NUNCA repitas el mismo menuItemId en dos entradas distintas. Si el cliente pide 2 sodas, el resultado correcto es: {"menuItemId":"xxx","name":"Soda","price":35,"quantity":2}. El resultado INCORRECTO sería dos entradas separadas con quantity:1.
 9. NOMBRE DEL PRODUCTO EN LA ORDEN: El campo "name" del item SIEMPRE debe ser el nombre EXACTO del producto en el menú. Si el producto tiene variantes listadas en su descripción (ej: descripción dice "Coca-Cola, Sprite, Fanta"), DEBES preguntar al cliente cuál variante quiere ANTES de confirmar, y luego incluir la variante en el nombre así: "Refresco (Coca-Cola)". Nunca abrevies ni cambies el nombre base del menú.
-10. ESCALACIÓN: Si el cliente pregunta algo que no puedes responder con seguridad (quejas, situaciones especiales, preguntas sobre alérgenos específicos, solicitudes fuera del menú, problemas con órdenes previas, o cualquier tema que requiera criterio humano), debes escalar al equipo del restaurante. En ese caso, avisa al cliente que avisaste al equipo y usa el bloque ---ACTION--- con action "escalate_to_human".
+10. OBSERVACIONES POR ITEM: Si el cliente indica algo especial para un producto (ej: "sin cebolla", "término medio", "sin picante", "extra salsa", "sin hielo"), captúralo en el campo "notes" de ese item. Si aplica a todos los items, ponlo en cada uno que corresponda. Si no hay observaciones, omite el campo "notes" o ponlo en null.
+11. ESCALACIÓN: Si el cliente pregunta algo que no puedes responder con seguridad (quejas, situaciones especiales, preguntas sobre alérgenos específicos, solicitudes fuera del menú, problemas con órdenes previas, o cualquier tema que requiera criterio humano), debes escalar al equipo del restaurante. En ese caso, avisa al cliente que avisaste al equipo y usa el bloque ---ACTION--- con action "escalate_to_human".
 ${orderSection}
 
 ## FORMATO DE RESPUESTA AL CONFIRMAR O MODIFICAR UNA ORDEN
@@ -74,11 +75,11 @@ Cuando el cliente confirme una orden nueva, responde normalmente y agrega al fin
   "tableNumber": "número de mesa o null",
   "deliveryAddress": "dirección o null",
   "items": [
-    { "menuItemId": "id exacto del item", "name": "nombre", "price": precio_numerico, "quantity": cantidad }
+    { "menuItemId": "id exacto del item", "name": "nombre", "price": precio_numerico, "quantity": cantidad, "notes": "observaciones del cliente o null" }
   ]
 }
 
-IMPORTANTE sobre items: cada menuItemId debe aparecer solo una vez. Agrupa las unidades en "quantity".
+IMPORTANTE sobre items: cada menuItemId debe aparecer solo una vez. Agrupa las unidades en "quantity". Incluye "notes" solo si el cliente indicó algo especial para ese item.
 
 Cuando el cliente quiera modificar una orden existente:
 
@@ -87,7 +88,7 @@ Cuando el cliente quiera modificar una orden existente:
   "action": "modify_order",
   "orderId": "${currentOrder?.id || 'id_de_la_orden'}",
   "items": [
-    { "menuItemId": "id exacto", "name": "nombre", "price": precio_numerico, "quantity": cantidad }
+    { "menuItemId": "id exacto", "name": "nombre", "price": precio_numerico, "quantity": cantidad, "notes": "observaciones o null" }
   ],
   "deliveryAddress": "nueva dirección o null si no cambia"
 }

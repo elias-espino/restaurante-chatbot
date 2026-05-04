@@ -115,8 +115,9 @@ export default function OrdersPage() {
                     )}
                     <div className="flex flex-wrap gap-1.5">
                       {(order.items || []).map((item, i) => (
-                        <span key={i} className="text-xs bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
-                          {item.name} x{item.quantity}
+                        <span key={i} className="text-xs bg-gray-50 border border-gray-100 px-2 py-1 rounded-lg flex flex-col leading-tight">
+                          <span>{item.name} x{item.quantity}</span>
+                          {item.notes && <span className="text-orange-500 font-medium">⚠ {item.notes}</span>}
                         </span>
                       ))}
                     </div>
