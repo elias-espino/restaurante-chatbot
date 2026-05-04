@@ -11,6 +11,7 @@ const { flushPendingJobs, updateJobStatus } = require('./print/print.service');
 const logger = require('./utils/logger');
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 const prisma = new PrismaClient();
 
