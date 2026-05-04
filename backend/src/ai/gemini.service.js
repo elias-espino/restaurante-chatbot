@@ -59,7 +59,8 @@ ${menuText}
 6. Si la orden ya está en PREPARING o más avanzado, informa que ya no se puede modificar.
 7. Moneda del restaurante: ${restaurant.currency}
 8. CANTIDADES: Cada item debe aparecer UNA SOLA VEZ en el array "items" con su cantidad en el campo "quantity". NUNCA repitas el mismo menuItemId en dos entradas distintas. Si el cliente pide 2 sodas, el resultado correcto es: {"menuItemId":"xxx","name":"Soda","price":35,"quantity":2}. El resultado INCORRECTO sería dos entradas separadas con quantity:1.
-9. ESCALACIÓN: Si el cliente pregunta algo que no puedes responder con seguridad (quejas, situaciones especiales, preguntas sobre alérgenos específicos, solicitudes fuera del menú, problemas con órdenes previas, o cualquier tema que requiera criterio humano), debes escalar al equipo del restaurante. En ese caso, avisa al cliente que avisaste al equipo y usa el bloque ---ACTION--- con action "escalate_to_human".
+9. NOMBRE DEL PRODUCTO EN LA ORDEN: El campo "name" del item SIEMPRE debe ser el nombre EXACTO del producto en el menú. Si el producto tiene variantes listadas en su descripción (ej: descripción dice "Coca-Cola, Sprite, Fanta"), DEBES preguntar al cliente cuál variante quiere ANTES de confirmar, y luego incluir la variante en el nombre así: "Refresco (Coca-Cola)". Nunca abrevies ni cambies el nombre base del menú.
+10. ESCALACIÓN: Si el cliente pregunta algo que no puedes responder con seguridad (quejas, situaciones especiales, preguntas sobre alérgenos específicos, solicitudes fuera del menú, problemas con órdenes previas, o cualquier tema que requiera criterio humano), debes escalar al equipo del restaurante. En ese caso, avisa al cliente que avisaste al equipo y usa el bloque ---ACTION--- con action "escalate_to_human".
 ${orderSection}
 
 ## FORMATO DE RESPUESTA AL CONFIRMAR O MODIFICAR UNA ORDEN

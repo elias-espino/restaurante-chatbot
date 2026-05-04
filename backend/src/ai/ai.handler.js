@@ -116,7 +116,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
         items: {
           create: validOrderItems.map(i => ({
             menuItemId: i.menuItemId,
-            name: dbNames.get(i.menuItemId) || i.name,
+            name: i.name || dbNames.get(i.menuItemId),
             price: i.price,
             quantity: i.quantity,
           })),
@@ -179,7 +179,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
         items: {
           create: modItems.map(i => ({
             menuItemId: i.menuItemId,
-            name: modDbNames.get(i.menuItemId) || i.name,
+            name: i.name || modDbNames.get(i.menuItemId),
             price: i.price,
             quantity: i.quantity,
           })),
