@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { sendText } = require('../whatsapp/whatsapp.api');
 const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
@@ -48,7 +49,7 @@ const getIncidencia = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-// Responder a una incidencia (restaurante → IA/cliente)
+// Responder a una incidencia (restaurante → cliente + historial IA)
 // ─────────────────────────────────────────────
 const respondIncidencia = async (req, res) => {
   try {
@@ -81,7 +82,67 @@ const respondIncidencia = async (req, res) => {
       },
     });
 
-    // Emitir en tiempo real
+    // ── 1. Enviar respuesta al cliente por WhatsApp ──────────
+    try {
+      const waConfig = await prisma.whatsappConfig.findUnique({
+        where: { restaurantId },
+      });
+      if (waConfig?.isActive) {
+        await sendText(waConfig.phoneNumberId, waConfig.accessToken, incidencia.phoneNumber, text.trim());
+        logger.info(`[Incidencia] Respuesta enviada por WA a ${incidencia.phoneNumber}`);
+      }
+    } catch (waErr) {
+      // No bloquear la respuesta si WhatsApp falla
+      logger.error('[Incidencia] Error enviando WA:', waErr.message);
+    }
+
+    // ── 2. Inyectar el intercambio en el historial de la IA ──
+    try {
+      const session = await prisma.conversationSession.findUnique({
+        where: {
+          restaurantId_phoneNumber: {
+            restaurantId,
+            phoneNumber: incidencia.phoneNumber,
+          },
+        },
+      });
+
+      if (session) {
+        const sessionData = session.data || {};
+        const history = Array.isArray(sessionData.conversationHistory)
+          ? sessionData.conversationHistory
+          : [];
+
+        // La pregunta original de la IA fue el primer mensaje de la incidencia
+        const aiQuestion = messages.find(m => m.role === 'ai')?.text || '';
+
+        const injected = [
+          ...history,
+          // Simulamos que el "usuario" hizo la pregunta que escaló
+          ...(aiQuestion ? [{ role: 'user', content: aiQuestion }] : []),
+          // Y que el "asistente" (IA) respondió con lo que dijo el restaurante
+          { role: 'assistant', content: text.trim() },
+        ].slice(-40);
+
+        await prisma.conversationSession.update({
+          where: {
+            restaurantId_phoneNumber: {
+              restaurantId,
+              phoneNumber: incidencia.phoneNumber,
+            },
+          },
+          data: {
+            data: { ...sessionData, conversationHistory: injected },
+            expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+          },
+        });
+        logger.info(`[Incidencia] Historial IA actualizado para ${incidencia.phoneNumber}`);
+      }
+    } catch (sessionErr) {
+      logger.error('[Incidencia] Error actualizando sesión IA:', sessionErr.message);
+    }
+
+    // ── 3. Emitir en tiempo real al backoffice ───────────────
     const io = global.io;
     if (io) {
       io.to(`restaurant:${restaurantId}`).emit('incidencia:updated', updated);
