@@ -72,8 +72,19 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
     });
     const validIds = new Set(validItems.map(i => i.id));
 
-    const validOrderItems = action.items.filter(i => validIds.has(i.menuItemId));
-    if (validOrderItems.length === 0) throw new Error('Ningún item válido en la orden');
+    const filteredItems = action.items.filter(i => validIds.has(i.menuItemId));
+    if (filteredItems.length === 0) throw new Error('Ningún item válido en la orden');
+
+    // Consolidar duplicados: si la IA mandó el mismo menuItemId dos veces, sumar quantities
+    const consolidated = new Map();
+    for (const item of filteredItems) {
+      if (consolidated.has(item.menuItemId)) {
+        consolidated.get(item.menuItemId).quantity += item.quantity;
+      } else {
+        consolidated.set(item.menuItemId, { ...item, quantity: Number(item.quantity) || 1 });
+      }
+    }
+    const validOrderItems = Array.from(consolidated.values());
 
     const subtotal = validOrderItems.reduce((sum, i) => sum + (Number(i.price) * i.quantity), 0);
 
@@ -134,8 +145,18 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
     const io = global.io;
     if (io) io.to(`restaurant:${restaurantId}`).emit('order:modifying', { orderId: order.id });
 
-    // Recalcular
-    const subtotal = action.items.reduce((sum, i) => sum + (Number(i.price) * i.quantity), 0);
+    // Consolidar duplicados en modify también
+    const consolidatedMod = new Map();
+    for (const item of action.items) {
+      if (consolidatedMod.has(item.menuItemId)) {
+        consolidatedMod.get(item.menuItemId).quantity += Number(item.quantity) || 1;
+      } else {
+        consolidatedMod.set(item.menuItemId, { ...item, quantity: Number(item.quantity) || 1 });
+      }
+    }
+    const modItems = Array.from(consolidatedMod.values());
+
+    const subtotal = modItems.reduce((sum, i) => sum + (Number(i.price) * i.quantity), 0);
 
     // Reemplazar items
     await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
@@ -147,7 +168,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
         deliveryAddress: action.deliveryAddress !== undefined ? action.deliveryAddress : order.deliveryAddress,
         updatedAt: new Date(),
         items: {
-          create: action.items.map(i => ({
+          create: modItems.map(i => ({
             menuItemId: i.menuItemId,
             name: i.name,
             price: i.price,

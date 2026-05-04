@@ -4,7 +4,13 @@ const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY, {
+  httpOptions: {
+    headers: {
+      Referer: `https://${process.env.APP_DOMAIN || 'app.espino-software.online'}/`,
+    },
+  },
+});
 
 // ─────────────────────────────────────────────
 // Construir system prompt dinámico con el menú
@@ -51,6 +57,7 @@ ${menuText}
 4. Si ya hay una orden activa y el cliente quiere modificar, usa action "modify_order".
 5. Si la orden ya está en PREPARING o más avanzado, informa que ya no se puede modificar.
 6. Moneda del restaurante: ${restaurant.currency}
+7. CANTIDADES: Cada item debe aparecer UNA SOLA VEZ en el array "items" con su cantidad en el campo "quantity". NUNCA repitas el mismo menuItemId en dos entradas distintas. Si el cliente pide 2 sodas, el resultado correcto es: {"menuItemId":"xxx","name":"Soda","price":35,"quantity":2}. El resultado INCORRECTO sería dos entradas separadas con quantity:1.
 ${orderSection}
 
 ## FORMATO DE RESPUESTA AL CONFIRMAR O MODIFICAR UNA ORDEN
@@ -67,6 +74,8 @@ Cuando el cliente confirme una orden nueva, responde normalmente y agrega al fin
     { "menuItemId": "id exacto del item", "name": "nombre", "price": precio_numerico, "quantity": cantidad }
   ]
 }
+
+IMPORTANTE sobre items: cada menuItemId debe aparecer solo una vez. Agrupa las unidades en "quantity".
 
 Cuando el cliente quiera modificar una orden existente:
 

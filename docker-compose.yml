@@ -59,6 +59,10 @@ services:
       DATABASE_URL: mysql://root:${DB_ROOT_PASSWORD:-rootpassword}@db:3306/${DB_NAME:-chatbot_db}
       JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto-jwt}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-cambia-este-refresh-secret}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       FRONTEND_URL: https://${APP_DOMAIN:-app.espino-software.online}
       PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
