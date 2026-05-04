@@ -66,13 +66,13 @@ export default function OrdersPage() {
   const orders = data?.orders || []
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Órdenes</h1>
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Órdenes</h1>
         <div className="flex gap-2">
-          <input type="date" className="input w-auto text-sm" value={dateFilter}
+          <input type="date" className="input flex-1 sm:flex-none sm:w-auto text-sm" value={dateFilter}
             onChange={e => setDateFilter(e.target.value)} />
-          <select className="input w-auto text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <select className="input flex-1 sm:flex-none sm:w-auto text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">Todos los estados</option>
             {Object.entries(STATUS_FLOW).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
