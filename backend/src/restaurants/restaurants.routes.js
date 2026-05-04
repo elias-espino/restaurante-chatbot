@@ -7,6 +7,8 @@ router.get('/', ctrl.getRestaurant);
 router.put('/', authorize('ADMIN'), ctrl.updateRestaurant);
 router.put('/schedules', authorize('ADMIN'), ctrl.updateSchedules);
 router.put('/whatsapp', authorize('ADMIN'), ctrl.updateWhatsappConfig);
+router.get('/ai', authorize('ADMIN'), ctrl.getAiConfig);
+router.put('/ai', authorize('ADMIN'), ctrl.updateAiConfig);
 router.get('/users', authorize('ADMIN'), ctrl.getUsers);
 router.post('/users', authorize('ADMIN'), ctrl.createUser);
 router.put('/users/:id', authorize('ADMIN'), ctrl.updateUser);

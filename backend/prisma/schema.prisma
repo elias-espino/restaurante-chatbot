@@ -17,17 +17,19 @@ datasource db {
 // RESTAURANTE (tenant principal)
 // ─────────────────────────────────────────────
 model Restaurant {
-  id          String   @id @default(uuid())
-  name        String
-  slug        String   @unique
-  logoUrl     String?  @db.Text
-  address     String?
-  phone       String?
-  currency    String   @default("USD")
-  timezone    String   @default("America/Mexico_City")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  logoUrl         String?  @db.Text
+  address         String?
+  phone           String?
+  currency        String   @default("USD")
+  timezone        String   @default("America/Mexico_City")
+  isActive        Boolean  @default(true)
+  aiEnabled       Boolean  @default(false)
+  aiPersonality   String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   schedules      RestaurantSchedule[]
   whatsappConfig WhatsappConfig?

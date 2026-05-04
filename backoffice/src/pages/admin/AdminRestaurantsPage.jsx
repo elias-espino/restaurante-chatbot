@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, ChevronRight, CheckCircle, XCircle } from 'lucide-react'
+import { Plus, Search, ChevronRight, CheckCircle, XCircle, Bot, DollarSign } from 'lucide-react'
 import adminApi from '../../lib/adminApi'
 import toast from 'react-hot-toast'
 
@@ -77,8 +77,9 @@ export default function AdminRestaurantsPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Restaurante</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Slug</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">WhatsApp</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Órdenes</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">IA</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Órdenes (mes)</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Costo IA est.</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -86,10 +87,26 @@ export default function AdminRestaurantsPage() {
             <tbody className="divide-y divide-gray-100">
               {restaurants.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/admin/restaurants/${r.id}`)}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{r.slug}</td>
-                  <td className="px-4 py-3 text-gray-500">{r.whatsappConfig?.phoneNumber || <span className="text-gray-300">—</span>}</td>
-                  <td className="px-4 py-3 text-gray-500">{r._count?.orders ?? 0}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-gray-900">{r.name}</p>
+                    <p className="text-xs text-gray-400 font-mono">{r.slug}</p>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 font-mono text-xs hidden">{r.slug}</td>
+                  <td className="px-4 py-3">
+                    {r.aiEnabled
+                      ? <span className="inline-flex items-center gap-1 text-purple-600 text-xs font-medium"><Bot size={13} /> Activa</span>
+                      : <span className="text-gray-300 text-xs">—</span>
+                    }
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 font-medium">{r.ordersThisMonth ?? 0}</td>
+                  <td className="px-4 py-3">
+                    {r.aiEnabled
+                      ? <span className="inline-flex items-center gap-1 text-green-700 text-xs">
+                          <DollarSign size={12} />{Number(r.estimatedAiCostUSD ?? 0).toFixed(3)} USD
+                        </span>
+                      : <span className="text-gray-300 text-xs">—</span>
+                    }
+                  </td>
                   <td className="px-4 py-3">
                     {r.isActive
                       ? <span className="inline-flex items-center gap-1 text-green-600"><CheckCircle size={14} /> Activo</span>

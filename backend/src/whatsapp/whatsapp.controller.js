@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { handleIncomingMessage } = require('./bot.handler');
+const { handleAiMessage } = require('../ai/ai.handler');
 const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
@@ -46,6 +47,7 @@ const handleWebhook = async (req, res) => {
         // Encontrar la configuración por phoneNumberId
         const config = await prisma.whatsappConfig.findFirst({
           where: { phoneNumberId, isActive: true },
+          include: { restaurant: true },
         });
         if (!config) {
           logger.warn(`No se encontró config para phoneNumberId: ${phoneNumberId}`);
@@ -54,10 +56,14 @@ const handleWebhook = async (req, res) => {
 
         // Procesar mensajes
         for (const message of value.messages || []) {
-          // Solo procesar mensajes de texto e interactivos
           if (!['text', 'interactive'].includes(message.type)) continue;
 
-          await handleIncomingMessage(config.restaurantId, config, message);
+          // Rutear: IA o bot clásico según configuración del restaurante
+          if (config.restaurant.aiEnabled) {
+            await handleAiMessage(config.restaurant, config, message);
+          } else {
+            await handleIncomingMessage(config.restaurantId, config, message);
+          }
         }
       }
     }

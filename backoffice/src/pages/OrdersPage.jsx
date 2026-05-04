@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
+import { PencilLine } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -19,6 +20,7 @@ export default function OrdersPage() {
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0])
+  const [modifyingOrders, setModifyingOrders] = useState(new Set())
 
   const { data, isLoading } = useQuery({
     queryKey: ['orders', statusFilter, dateFilter],
@@ -38,9 +40,27 @@ export default function OrdersPage() {
 
   useEffect(() => {
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['orders'] })
+
+    const onModifying = (e) => {
+      const { orderId } = e.detail || {}
+      if (!orderId) return
+      setModifyingOrders(prev => new Set([...prev, orderId]))
+    }
+    const onUpdated = (e) => {
+      const { orderId, id } = e.detail || {}
+      const resolvedId = orderId || id
+      if (resolvedId) setModifyingOrders(prev => { const n = new Set(prev); n.delete(resolvedId); return n })
+      refresh()
+    }
+
     window.addEventListener('order:new', refresh)
-    window.addEventListener('order:updated', refresh)
-    return () => { window.removeEventListener('order:new', refresh); window.removeEventListener('order:updated', refresh) }
+    window.addEventListener('order:updated', onUpdated)
+    window.addEventListener('order:modifying', onModifying)
+    return () => {
+      window.removeEventListener('order:new', refresh)
+      window.removeEventListener('order:updated', onUpdated)
+      window.removeEventListener('order:modifying', onModifying)
+    }
   }, [queryClient])
 
   const orders = data?.orders || []
@@ -70,8 +90,15 @@ export default function OrdersPage() {
         <div className="grid gap-3">
           {orders.map(order => {
             const st = STATUS_FLOW[order.status] || {}
+            const isModifying = modifyingOrders.has(order.id)
             return (
-              <div key={order.id} className="card p-4">
+              <div key={order.id} className={`card p-4 transition-all ${isModifying ? 'ring-2 ring-amber-400' : ''}`}>
+                {isModifying && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600 font-medium mb-2 animate-pulse">
+                    <PencilLine size={13} />
+                    El cliente está modificando esta orden...
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
