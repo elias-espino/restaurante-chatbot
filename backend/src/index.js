@@ -14,6 +14,9 @@ const app = express();
 const server = http.createServer(app);
 const prisma = new PrismaClient();
 
+// Necesario para que express-rate-limit funcione detrás de Traefik/nginx
+app.set('trust proxy', 1);
+
 // ── WebSocket / Socket.io ──────────────────────────────────
 const io = new Server(server, {
   cors: { origin: process.env.FRONTEND_URL || '*', methods: ['GET', 'POST'] },
