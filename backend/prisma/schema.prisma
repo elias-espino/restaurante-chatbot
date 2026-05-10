@@ -26,9 +26,10 @@ model Restaurant {
   currency        String   @default("USD")
   timezone        String   @default("America/Mexico_City")
   isActive        Boolean  @default(true)
-  aiEnabled       Boolean  @default(false)
-  aiPersonality   String?  @db.Text
-  createdAt       DateTime @default(now())
+  aiEnabled                Boolean  @default(false)
+  aiPersonality            String?  @db.Text
+  deliveryLocationEnabled  Boolean  @default(false)
+  createdAt                DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   schedules      RestaurantSchedule[]
@@ -200,6 +201,8 @@ model Order {
   deliveryAssignedAt    DateTime?
   deliveryStartedAt     DateTime? // cuando rider marca "en camino"
   deliveryConfirmedAt   DateTime? // cuando rider confirma entrega con código
+  deliveryLatitude      Float?    // coordenadas de la ubicación del cliente (opcional)
+  deliveryLongitude     Float?
 
   restaurant      Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table           Table?      @relation(fields: [tableId], references: [id])

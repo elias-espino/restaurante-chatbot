@@ -156,4 +156,30 @@ const updateAiConfig = async (req, res) => {
   }
 };
 
-module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable, getAiConfig, updateAiConfig };
+const getDeliveryConfig = async (req, res) => {
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.restaurantId },
+      select: { deliveryLocationEnabled: true },
+    });
+    return success(res, restaurant);
+  } catch (err) {
+    return error(res, 'Error al obtener configuración de delivery', 500);
+  }
+};
+
+const updateDeliveryConfig = async (req, res) => {
+  try {
+    const { deliveryLocationEnabled } = req.body;
+    const updated = await prisma.restaurant.update({
+      where: { id: req.restaurantId },
+      data: { deliveryLocationEnabled: Boolean(deliveryLocationEnabled) },
+      select: { deliveryLocationEnabled: true },
+    });
+    return success(res, updated, 'Configuración Delivery actualizada');
+  } catch (err) {
+    return error(res, 'Error al actualizar configuración de delivery', 500);
+  }
+};
+
+module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable, getAiConfig, updateAiConfig, getDeliveryConfig, updateDeliveryConfig };

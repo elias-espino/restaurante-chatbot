@@ -3,7 +3,7 @@
 // Mobile-first: diseñada para uso en celular mientras se conduce
 // ============================================================
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { MapPin, Package, CheckCircle2, Bike, RefreshCw, LogOut, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { MapPin, Package, CheckCircle2, Bike, RefreshCw, LogOut, Clock, ChevronDown, ChevronUp, Navigation } from 'lucide-react'
 
 const API_BASE = '/api'
 
@@ -247,6 +247,17 @@ function ActiveOrder({ order, riderCode, onStatusUpdated, onLogout }) {
               <MapPin size={16} className="text-indigo-400 mt-0.5 shrink-0" />
               <p className="text-gray-300 text-sm leading-relaxed">{order.deliveryAddress}</p>
             </div>
+          )}
+          {order.deliveryLatitude && order.deliveryLongitude && (
+            <a
+              href={`https://maps.google.com/?q=${order.deliveryLatitude},${order.deliveryLongitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 mt-3 bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white rounded-xl px-4 py-3 text-sm font-bold transition-colors"
+            >
+              <Navigation size={16} />
+              Abrir en Google Maps 🗺️
+            </a>
           )}
         </div>
 

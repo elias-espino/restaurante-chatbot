@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
-import { Bot, Printer, Wifi, WifiOff, Copy, RefreshCw, Trash2, Plus } from 'lucide-react'
+import { Bot, Printer, Wifi, WifiOff, Copy, RefreshCw, Trash2, Plus, Bike, MapPin } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -72,9 +72,24 @@ export default function SettingsPage() {
   const [aiForm, setAiForm] = useState({ aiEnabled: false, aiPersonality: '' })
   useEffect(() => { if (aiConfig) setAiForm({ aiEnabled: aiConfig.aiEnabled, aiPersonality: aiConfig.aiPersonality || '' }) }, [aiConfig])
 
+  // ── Delivery config ─────────────────────────────────────────
+  const { data: deliveryConfig } = useQuery({
+    queryKey: ['delivery-config'],
+    queryFn: () => api.get('/restaurant/delivery').then(r => r.data.data),
+    enabled: tab === 'delivery',
+  })
+  const [deliveryForm, setDeliveryForm] = useState({ deliveryLocationEnabled: false })
+  useEffect(() => { if (deliveryConfig) setDeliveryForm({ deliveryLocationEnabled: deliveryConfig.deliveryLocationEnabled }) }, [deliveryConfig])
+
   const saveAi = useMutation({
     mutationFn: () => api.put('/restaurant/ai', aiForm),
     onSuccess: () => { toast.success('Configuración IA guardada'); queryClient.invalidateQueries({ queryKey: ['ai-config'] }) },
+    onError: () => toast.error('Error al guardar'),
+  })
+
+  const saveDelivery = useMutation({
+    mutationFn: () => api.put('/restaurant/delivery', deliveryForm),
+    onSuccess: () => { toast.success('Configuración Delivery guardada'); queryClient.invalidateQueries({ queryKey: ['delivery-config'] }) },
     onError: () => toast.error('Error al guardar'),
   })
 
@@ -125,6 +140,7 @@ export default function SettingsPage() {
     { id: 'horarios', label: 'Horarios' },
     { id: 'usuarios', label: 'Usuarios' },
     { id: 'ia', label: '✨ IA' },
+    { id: 'delivery', label: '🛵 Delivery' },
     { id: 'impresoras', label: '🖨️ Impresoras' },
   ]
 
@@ -301,6 +317,50 @@ export default function SettingsPage() {
 
           <button className="btn-primary" onClick={() => saveAi.mutate()} disabled={saveAi.isPending}>
             {saveAi.isPending ? 'Guardando...' : 'Guardar configuración IA'}
+          </button>
+        </div>
+      )}
+
+      {/* Delivery */}
+      {tab === 'delivery' && (
+        <div className="card p-5 max-w-lg space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-indigo-50 rounded-lg"><Bike size={20} className="text-indigo-600" /></div>
+            <div>
+              <h2 className="font-semibold text-gray-900">Configuración de Delivery</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Ajustes para el flujo de órdenes a domicilio.</p>
+            </div>
+          </div>
+
+          {/* Toggle de ubicación */}
+          <label className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer">
+            <div className="flex items-start gap-3">
+              <MapPin size={18} className="text-indigo-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Pedir ubicación al confirmar</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {deliveryForm.deliveryLocationEnabled
+                    ? '✅ La IA solicitará la ubicación GPS del cliente vía WhatsApp'
+                    : '⚙️ Solo se pide la dirección en texto'}
+                </p>
+              </div>
+            </div>
+            <div
+              onClick={() => setDeliveryForm(f => ({ ...f, deliveryLocationEnabled: !f.deliveryLocationEnabled }))}
+              className={`relative w-12 h-6 rounded-full transition-colors cursor-pointer shrink-0 ${deliveryForm.deliveryLocationEnabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${deliveryForm.deliveryLocationEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+            </div>
+          </label>
+
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 space-y-1">
+            <p>💡 <strong>¿Cómo funciona?</strong> Después de que el cliente ingresa su dirección en texto, el bot le pedirá que comparta su ubicación usando el selector nativo de WhatsApp.</p>
+            <p>💡 Las coordenadas GPS se muestran en la pantalla del rider como un enlace a Google Maps, facilitando la navegación.</p>
+            <p>💡 Si el cliente no comparte su ubicación, el bot continúa con la dirección en texto sin bloquear el pedido.</p>
+          </div>
+
+          <button className="btn-primary" onClick={() => saveDelivery.mutate()} disabled={saveDelivery.isPending}>
+            {saveDelivery.isPending ? 'Guardando...' : 'Guardar configuración'}
           </button>
         </div>
       )}

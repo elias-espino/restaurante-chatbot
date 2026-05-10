@@ -5,16 +5,17 @@ const prisma = new PrismaClient();
 
 // Estados de la conversación
 const STATES = {
-  GREETING:     'GREETING',
-  MENU:         'MENU',
-  CATEGORY:     'CATEGORY',
-  CART:         'CART',
-  SERVICE_TYPE: 'SERVICE_TYPE',
-  TABLE_NUMBER: 'TABLE_NUMBER',
-  DELIVERY_ADDR:'DELIVERY_ADDR',
-  CUSTOMER_NAME:'CUSTOMER_NAME',
-  CONFIRM:      'CONFIRM',
-  DONE:         'DONE',
+  GREETING:          'GREETING',
+  MENU:              'MENU',
+  CATEGORY:          'CATEGORY',
+  CART:              'CART',
+  SERVICE_TYPE:      'SERVICE_TYPE',
+  TABLE_NUMBER:      'TABLE_NUMBER',
+  DELIVERY_ADDR:     'DELIVERY_ADDR',
+  DELIVERY_LOCATION: 'DELIVERY_LOCATION', // espera ubicación WhatsApp del cliente
+  CUSTOMER_NAME:     'CUSTOMER_NAME',
+  CONFIRM:           'CONFIRM',
+  DONE:              'DONE',
 };
 
 const SESSION_EXPIRY_MINUTES = 30;

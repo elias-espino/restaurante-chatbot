@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const { STATES, getSession, updateSession, addToCart, removeFromCart, getCartTotal, formatCartSummary, formatPrice } = require('./session.manager');
-const { sendText, sendButtons, sendList, markAsRead } = require('./whatsapp.api');
+const { sendText, sendButtons, sendList, markAsRead, sendLocationRequest } = require('./whatsapp.api');
 const { createPrintJob } = require('../print/print.service');
 const logger = require('../utils/logger');
 
@@ -74,6 +74,8 @@ const handleIncomingMessage = async (restaurantId, config, message) => {
   let userInput = '';
   let interactiveId = '';
 
+  let locationData = null; // { latitude, longitude } si el cliente compartió su ubicación
+
   if (type === 'text') {
     userInput = message.text?.body?.trim() || '';
   } else if (type === 'interactive') {
@@ -84,17 +86,23 @@ const handleIncomingMessage = async (restaurantId, config, message) => {
       interactiveId = message.interactive.list_reply.id;
       userInput = message.interactive.list_reply.title;
     }
+  } else if (type === 'location') {
+    locationData = {
+      latitude: message.location?.latitude,
+      longitude: message.location?.longitude,
+    };
   }
 
   // Marcar como leído
   await markAsRead(config.phoneNumberId, config.accessToken, messageId);
 
-  // Obtener moneda del restaurante
+  // Obtener configuración del restaurante
   const restaurant = await prisma.restaurant.findUnique({
     where: { id: restaurantId },
-    select: { currency: true },
+    select: { currency: true, deliveryLocationEnabled: true },
   });
   const currency = restaurant?.currency || 'MXN';
+  const deliveryLocationEnabled = restaurant?.deliveryLocationEnabled || false;
 
   // Obtener/crear sesión
   const session = await getSession(restaurantId, phoneNumber);
@@ -242,8 +250,37 @@ const handleIncomingMessage = async (restaurantId, config, message) => {
     case STATES.DELIVERY_ADDR: {
       if (!userInput) { await send.text('Por favor indica tu dirección.'); return; }
       const updatedData = { ...data, deliveryAddress: userInput };
-      await updateSession(restaurantId, phoneNumber, { state: STATES.CONFIRM, data: updatedData });
-      await sendConfirmation(session, send, cart, updatedData, currency);
+
+      if (deliveryLocationEnabled) {
+        // Pedir ubicación nativa de WhatsApp para pasársela al rider
+        await updateSession(restaurantId, phoneNumber, { state: STATES.DELIVERY_LOCATION, data: updatedData });
+        await sendLocationRequest(
+          config.phoneNumberId, config.accessToken, phoneNumber,
+          '📍 Por favor comparte tu ubicación para que el repartidor pueda encontrarte más fácilmente.'
+        );
+      } else {
+        await updateSession(restaurantId, phoneNumber, { state: STATES.CONFIRM, data: updatedData });
+        await sendConfirmation(session, send, cart, updatedData, currency);
+      }
+      break;
+    }
+
+    case STATES.DELIVERY_LOCATION: {
+      if (locationData?.latitude && locationData?.longitude) {
+        // Cliente compartió su ubicación GPS
+        const updatedData = {
+          ...data,
+          deliveryLatitude: locationData.latitude,
+          deliveryLongitude: locationData.longitude,
+        };
+        await updateSession(restaurantId, phoneNumber, { state: STATES.CONFIRM, data: updatedData });
+        await send.text('✅ Ubicación recibida. Gracias 📍');
+        await sendConfirmation(session, send, cart, updatedData, currency);
+      } else {
+        // Cliente escribió texto en lugar de compartir ubicación → aceptar y continuar
+        await updateSession(restaurantId, phoneNumber, { state: STATES.CONFIRM });
+        await sendConfirmation(session, send, cart, data, currency);
+      }
       break;
     }
 
@@ -439,6 +476,8 @@ const placeOrder = async (restaurantId, config, phoneNumber, session, cart, data
         serviceType: data.serviceType,
         tableId,
         deliveryAddress: data.deliveryAddress || null,
+        deliveryLatitude: data.deliveryLatitude || null,
+        deliveryLongitude: data.deliveryLongitude || null,
         status: 'CONFIRMED',
         subtotal,
         tax: 0,

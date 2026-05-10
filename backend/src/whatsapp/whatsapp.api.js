@@ -74,4 +74,17 @@ const markAsRead = (phoneNumberId, token, messageId) =>
     message_id: messageId,
   }).catch(() => {}); // No crítico
 
-module.exports = { sendText, sendButtons, sendList, markAsRead };
+// Solicitar ubicación al cliente (WhatsApp native location picker)
+const sendLocationRequest = (phoneNumberId, token, to, bodyText) =>
+  sendMessage(phoneNumberId, token, to, {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'interactive',
+    interactive: {
+      type: 'location_request_message',
+      body: { text: bodyText },
+      action: { name: 'send_location' },
+    },
+  });
+
+module.exports = { sendText, sendButtons, sendList, markAsRead, sendLocationRequest };
