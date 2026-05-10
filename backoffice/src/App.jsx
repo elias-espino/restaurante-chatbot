@@ -10,6 +10,8 @@ import TablesPage from './pages/TablesPage'
 import ReportsPage from './pages/ReportsPage'
 import SettingsPage from './pages/SettingsPage'
 import IncidenciasPage from './pages/IncidenciasPage'
+import DeliveryPage from './pages/DeliveryPage'
+import RiderPage from './pages/RiderPage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboardPage from './pages/admin/AdminDashboardPage'
@@ -40,7 +42,12 @@ export default function App() {
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="incidencias" element={<IncidenciasPage />} />
+        <Route path="delivery" element={<DeliveryPage />} />
       </Route>
+
+      {/* Pantalla pública del rider — fuera del Layout protegido */}
+      <Route path="/rider" element={<RiderPage />} />
+      <Route path="/rider/:riderCode" element={<RiderPage />} />
 
       {/* Panel superadmin */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -50,7 +57,7 @@ export default function App() {
         <Route path="restaurants/:id" element={<AdminRestaurantDetailPage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
 }

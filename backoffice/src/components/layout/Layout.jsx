@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ShoppingBag, UtensilsCrossed, BarChart3, Settings, LogOut, Wifi, WifiOff, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, ShoppingBag, UtensilsCrossed, BarChart3, Settings, LogOut, Wifi, WifiOff, AlertTriangle, Bike } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useSocketStore } from '../../hooks/useSocket'
 import { useEffect, useState } from 'react'
@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 const navItems = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/orders',       icon: ShoppingBag,     label: 'Órdenes' },
+  { to: '/delivery',     icon: Bike,            label: 'Delivery' },
   { to: '/menu',         icon: UtensilsCrossed, label: 'Menú' },
   { to: '/reports',      icon: BarChart3,       label: 'Reportes' },
   { to: '/incidencias',  icon: AlertTriangle,   label: 'Incidencias', badge: true },

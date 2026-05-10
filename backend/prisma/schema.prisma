@@ -41,6 +41,7 @@ model Restaurant {
   users          User[]
   printJobs      PrintJob[]
   incidencias    Incidencia[]
+  riders         Rider[]
 
   @@map("restaurants")
 }
@@ -101,6 +102,7 @@ model Printer {
 
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   printJobs    PrintJob[]
+  menuItems    MenuItem[]
 
   @@map("printers")
 }
@@ -131,6 +133,7 @@ model MenuItem {
   id           String   @id @default(uuid())
   restaurantId String
   categoryId   String
+  printerId    String?
   name         String
   description  String?  @db.Text
   price        Decimal  @db.Decimal(10, 2)
@@ -144,6 +147,7 @@ model MenuItem {
 
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category     Category    @relation(fields: [categoryId], references: [id])
+  printer      Printer?    @relation(fields: [printerId], references: [id])
   orderItems   OrderItem[]
 
   @@map("menu_items")
@@ -190,8 +194,16 @@ model Order {
   completedAt     DateTime?
   cancelledAt     DateTime?
 
+  // Delivery
+  riderId               String?
+  deliveryCode          String?   // 4 dígitos numérico para confirmar entrega
+  deliveryAssignedAt    DateTime?
+  deliveryStartedAt     DateTime? // cuando rider marca "en camino"
+  deliveryConfirmedAt   DateTime? // cuando rider confirma entrega con código
+
   restaurant      Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   table           Table?      @relation(fields: [tableId], references: [id])
+  rider           Rider?      @relation(fields: [riderId], references: [id])
   items           OrderItem[]
   printJobs       PrintJob[]
 
@@ -226,6 +238,7 @@ enum OrderStatus {
   CONFIRMED
   PREPARING
   READY
+  OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
 }
@@ -302,6 +315,27 @@ enum UserRole {
   ADMIN
   STAFF
   VIEWER
+}
+
+// ─────────────────────────────────────────────
+// RIDERS (módulo de delivery)
+// ─────────────────────────────────────────────
+model Rider {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  phone        String?
+  riderCode    String   // código hex 4 chars, único por restaurante (ej: "a3f2")
+  isActive     Boolean  @default(true)
+  isAvailable  Boolean  @default(true) // false = está en una entrega activa
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@unique([restaurantId, riderCode])
+  @@map("riders")
 }
 
 // ─────────────────────────────────────────────
