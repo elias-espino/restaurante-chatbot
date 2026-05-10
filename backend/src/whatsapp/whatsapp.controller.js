@@ -56,7 +56,7 @@ const handleWebhook = async (req, res) => {
 
         // Procesar mensajes
         for (const message of value.messages || []) {
-          if (!['text', 'interactive'].includes(message.type)) continue;
+          if (!['text', 'interactive', 'location'].includes(message.type)) continue;
 
           // Rutear: IA o bot clásico según configuración del restaurante
           if (config.restaurant.aiEnabled) {

@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { chat } = require('./gemini.service');
-const { sendText } = require('../whatsapp/whatsapp.api');
+const { sendText, sendLocationRequest } = require('../whatsapp/whatsapp.api');
 const { createPrintJob } = require('../print/print.service');
 const { createIncidencia } = require('../incidents/incidents.controller');
 const logger = require('../utils/logger');
@@ -209,6 +209,44 @@ const handleAiMessage = async (restaurant, config, message) => {
     return;
   }
 
+  // ── Ubicación GPS del cliente (respuesta al location_request_message) ──
+  if (type === 'location') {
+    const latitude = message.location?.latitude;
+    const longitude = message.location?.longitude;
+    if (!latitude || !longitude) return;
+
+    try {
+      const session = await getAiSession(restaurant.id, phoneNumber);
+      const sessionData = session.data || {};
+      const pendingOrderId = sessionData.pendingLocationOrderId;
+
+      if (pendingOrderId) {
+        // Guardar coordenadas en la orden
+        await prisma.order.update({
+          where: { id: pendingOrderId },
+          data: { deliveryLatitude: latitude, deliveryLongitude: longitude },
+        });
+
+        // Limpiar estado pendiente y conservar historial
+        await prisma.conversationSession.update({
+          where: { restaurantId_phoneNumber: { restaurantId: restaurant.id, phoneNumber } },
+          data: {
+            data: {
+              ...sessionData,
+              pendingLocationOrderId: null,
+            },
+            expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+          },
+        });
+
+        await send('✅ ¡Ubicación recibida! Tu pedido está confirmado y nuestro repartidor podrá encontrarte fácilmente. 🗺️');
+      }
+    } catch (err) {
+      logger.error('[AI] Error guardando ubicación:', err.message);
+    }
+    return;
+  }
+
   let userText = '';
   if (type === 'text') userText = message.text?.body?.trim() || '';
   else if (type === 'interactive') {
@@ -254,6 +292,9 @@ const handleAiMessage = async (restaurant, config, message) => {
 
     // Ejecutar acción si la hay
     let newOrderId = currentOrderId;
+    let askForLocation = false; // si debemos pedir ubicación GPS tras confirmar
+    let pendingLocationOrderId = sessionData.pendingLocationOrderId || null;
+
     if (action) {
       try {
         if (action.action === 'escalate_to_human') {
@@ -267,7 +308,14 @@ const handleAiMessage = async (restaurant, config, message) => {
           logger.info(`[AI] Escalación creada para ${phoneNumber} — restaurante ${restaurant.id}`);
         } else {
           const result = await executeAction(action, restaurant.id, phoneNumber);
-          if (result && action.action === 'place_order') newOrderId = result.id;
+          if (result && action.action === 'place_order') {
+            newOrderId = result.id;
+            // Si es delivery y el toggle está activo → pedir ubicación GPS
+            if (result.serviceType === 'DELIVERY' && restaurant.deliveryLocationEnabled) {
+              askForLocation = true;
+              pendingLocationOrderId = result.id;
+            }
+          }
         }
       } catch (err) {
         logger.error('[AI] Error ejecutando acción:', err.message);
@@ -276,11 +324,31 @@ const handleAiMessage = async (restaurant, config, message) => {
       }
     }
 
-    // Guardar historial actualizado
-    await updateAiSession(restaurant.id, phoneNumber, updatedHistory, newOrderId);
+    // Guardar historial actualizado (incluir pendingLocationOrderId si aplica)
+    const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    await prisma.conversationSession.update({
+      where: { restaurantId_phoneNumber: { restaurantId: restaurant.id, phoneNumber } },
+      data: {
+        data: {
+          conversationHistory: updatedHistory,
+          currentOrderId: newOrderId || null,
+          pendingLocationOrderId: pendingLocationOrderId,
+        },
+        expiresAt,
+      },
+    });
 
     // Enviar respuesta al cliente
     await send(aiMessage);
+
+    // Si corresponde, pedir ubicación GPS después de la confirmación del pedido
+    if (askForLocation) {
+      await sendLocationRequest(
+        config.phoneNumberId, config.accessToken, phoneNumber,
+        '📍 Por favor comparte tu ubicación para que el repartidor pueda encontrarte más fácilmente.'
+      );
+      return; // No enviar nada más
+    }
 
   } catch (err) {
     logger.error('[AI] Error en handleAiMessage:', err.message);
