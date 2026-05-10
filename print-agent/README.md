@@ -80,7 +80,9 @@ Y en el backoffice la impresora aparecerá como **Online** (ícono verde).
 
 ## Tipos de conexión
 
-### Red / WiFi (recomendado)
+El agente soporta **cuatro modos** vía la variable `PRINTER_TYPE`. Todos comparten la misma cadena de formateo del ticket — sólo cambia el transporte.
+
+### 🟢 NETWORK — Red / WiFi / Ethernet (recomendado para cocina fija)
 La impresora se conecta por IP. Más estable y funciona en cualquier sistema operativo sin drivers adicionales.
 
 ```env
@@ -89,7 +91,7 @@ PRINTER_HOST=192.168.1.100
 PRINTER_PORT=9100
 ```
 
-### USB
+### 🟢 USB
 El agente detecta automáticamente la primera impresora USB conectada.
 
 ```env
@@ -101,6 +103,108 @@ PRINTER_TYPE=USB
 > brew install libusb
 > ```
 > Si tienes problemas de permisos en Mac, usa mejor la conexión por red.
+
+### 🟡 SERIAL — Bluetooth (PT-210, MTP-II, Goojprt) o RS-232
+Útil para impresoras térmicas portátiles que se emparejan por Bluetooth y aparecen en el sistema operativo como un **puerto COM virtual** (Windows) o `/dev/cu.*` / `/dev/tty.*-SPP` (macOS) o `/dev/rfcomm0` (Linux). Sirve también para impresoras con puerto serial clásico.
+
+```env
+PRINTER_TYPE=SERIAL
+SERIAL_PORT=auto      # auto = detección automática | o pon el path manualmente
+SERIAL_BAUD=9600      # PT-210 y la mayoría usan 9600. Algunas Xprinter 19200/38400
+ENCODING=CP437        # PT-210 viene en GBK por defecto, fuerza CP437 para acentos
+```
+
+> 💡 **Tip:** `npm run list-ports` muestra todos los puertos serie y las impresoras del SO — úsalo para descubrir el path o nombre exacto.
+
+#### Conectar una PT-210 por Bluetooth en Windows
+1. Encender la impresora (LED azul parpadeando = visible).
+2. **Configuración → Bluetooth y dispositivos → Agregar dispositivo → Bluetooth**.
+3. Seleccionar la PT-210 (suele aparecer como `BlueTooth Printer` o `PT-210`). Si pide PIN, usar `0000` o `1234`.
+4. Una vez emparejada, abrir **Administrador de dispositivos → Puertos (COM y LPT)** — ahí aparece el COM asignado, ej. `COM5` (Standard Serial over Bluetooth link).
+5. Ese número va en `SERIAL_PORT=COM5` del `.env`.
+6. Si hay dos COM (entrante y saliente), usar el **saliente**.
+
+#### Conectar una PT-210 por Bluetooth en macOS
+1. Encender la impresora (LED azul parpadeando).
+2. **Preferencias del Sistema → Bluetooth** (o Configuración del Sistema en Ventura+) → conectar al dispositivo `PT-210` o similar. Si pide PIN, usar `0000` o `1234`.
+3. Descubrir el puerto que macOS asignó:
+   ```bash
+   ls /dev/cu.* /dev/tty.* | grep -i -E 'PT|MTP|SPP|printer|Bluetooth'
+   # ejemplo de salida:
+   # /dev/cu.PT-210-SerialPort
+   # /dev/tty.PT-210-SerialPort
+   ```
+   Siempre **preferir `cu.*`** sobre `tty.*` (cu = call up, para conexiones salientes).
+4. En `.env`:
+   ```env
+   PRINTER_TYPE=SERIAL
+   SERIAL_PORT=/dev/cu.PT-210-SerialPort
+   ```
+   …o simplemente `SERIAL_PORT=auto` y deja que el agente lo detecte solo.
+
+> ⚠️ **macOS Sonoma/Sequoia:** la primera vez que el proceso abra el puerto BT, macOS pedirá permiso de acceso a Bluetooth. Acepta — queda guardado para siguientes ejecuciones.
+
+#### Conectar una PT-210 por Bluetooth en Linux
+```bash
+sudo bluetoothctl
+[bluetooth]# scan on
+[bluetooth]# pair AA:BB:CC:DD:EE:FF
+[bluetooth]# trust AA:BB:CC:DD:EE:FF
+[bluetooth]# exit
+
+sudo rfcomm bind 0 AA:BB:CC:DD:EE:FF 1
+# → /dev/rfcomm0
+```
+
+> ⚠️ **Aviso operativo:** las térmicas portátiles tipo PT-210 funcionan con batería y son lentas (~80mm/seg en bitmap, ~200mm/seg en texto). Para un restaurante con cocina fija conviene una impresora de red como la Xprinter XP-T80NL o Epson TM-T20III. La PT-210 es ideal para repartidores o vendedores ambulantes que llevan la impresora encima.
+
+### 🟡 SPOOLER — Cola del SO en modo RAW (Win/Mac/Linux)
+Fallback universal cross-platform: si la impresora está instalada en el SO (winspool en Windows, CUPS en macOS/Linux), este modo la encuentra por nombre y le pasa los bytes ESC/POS en modo RAW — **sin rasterizar**, así que la performance es idéntica a los modos nativos.
+
+```env
+PRINTER_TYPE=SPOOLER
+SPOOLER_PRINTER_NAME=PT-210   # nombre tal como lo ve el SO
+```
+
+Para descubrir el nombre exacto:
+```bash
+npm run list-ports             # multiplataforma
+# o:
+lpstat -p                      # macOS / Linux
+```
+
+Requiere instalar la dependencia opcional (multiplataforma, usa Win32 API en Windows y CUPS en Mac/Linux):
+```bash
+npm install @grandchef/node-printer
+```
+
+Pre-requisitos del compilador (la dep es nativa):
+- **Windows:** Visual Studio Build Tools.
+- **macOS:** `xcode-select --install` (Xcode Command Line Tools). CUPS viene preinstalado.
+- **Linux:** `sudo apt install build-essential libcups2-dev`.
+
+#### Setup macOS para SPOOLER (vía CUPS)
+1. **Preferencias del Sistema → Impresoras y escáneres → Agregar impresora**.
+2. Seleccionar la PT-210 (debe estar emparejada por Bluetooth o conectada por USB).
+3. En el driver elige **"Generic" → "Generic PostScript Printer"** o, mejor, instala el driver del fabricante si lo tiene. Para mandar RAW, el driver concreto importa poco.
+4. Validar:
+   ```bash
+   lpstat -p          # debe listar la impresora
+   echo "test" | lp -d PT-210 -o raw   # imprime un test
+   ```
+5. Poner el mismo nombre en `SPOOLER_PRINTER_NAME`.
+
+> El driver del SO debe soportar el datatype **RAW**. Casi todos los drivers ESC/POS lo soportan (Epson, Xprinter, 3nStar, Bixolon, drivers genéricos de CUPS). Si tu driver solo soporta GDI/PostScript, este modo fallará — usa `SERIAL` en su lugar.
+
+---
+
+## Diagnóstico
+
+```bash
+npm run list-ports     # lista puertos serie + impresoras del SO
+```
+
+Útil para saber qué poner en `SERIAL_PORT` o `SPOOLER_PRINTER_NAME` antes de arrancar el agente.
 
 ---
 
@@ -125,11 +229,14 @@ npm run dev   # Usa nodemon — recarga al guardar cambios
 ```
 print-agent/
 ├── src/
-│   ├── index.js              # Entrada — lee .env y arranca la conexión
+│   ├── index.js                # Entrada — lee .env y arranca la conexión
+│   ├── list-ports.js           # `npm run list-ports` — diagnóstico
 │   ├── client/
-│   │   └── socket.client.js  # WebSocket: auth, recepción de jobs, resultados
+│   │   └── socket.client.js    # WebSocket: auth, jobs, dispatcher
 │   └── printer/
-│       └── escpos.printer.js # Formateo e impresión del ticket ESC/POS
+│       ├── escpos.printer.js   # Cadena ESC/POS — modos USB, NETWORK, SERIAL
+│       ├── serial.adapter.js   # Wrapper SerialPort + auto-discovery BT
+│       └── spooler.printer.js  # Modo SPOOLER (winspool / CUPS, RAW)
 ├── .env.example
 └── package.json
 ```

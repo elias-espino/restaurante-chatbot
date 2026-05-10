@@ -344,6 +344,7 @@ export default function RiderPage() {
   const [riderCode, setRiderCode] = useState(null)
   const [riderData, setRiderData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const socketRef = useRef(null)
 
   // Al montar, verificar si hay código guardado
   useEffect(() => {
@@ -357,7 +358,40 @@ export default function RiderPage() {
     }
   }, [])
 
-  // Auto-refresh cada 30 segundos
+  // Conectar WebSocket cuando hay riderCode — recibe órdenes en tiempo real
+  useEffect(() => {
+    if (!riderCode) return
+
+    // Importar socket.io-client dinámicamente (ya está en el bundle del backoffice)
+    const wsUrl = window.location.origin
+    const script = document.createElement('script')
+    script.src = '/socket.io/socket.io.js'
+    script.onload = () => {
+      const socket = window.io(wsUrl, { transports: ['websocket', 'polling'] })
+      socketRef.current = socket
+
+      socket.on('connect', () => {
+        socket.emit('rider:join', { riderCode })
+      })
+
+      // El admin asignó una orden → actualizar pantalla inmediatamente
+      socket.on('rider:order', (order) => {
+        setRiderData(prev => prev ? { ...prev, activeOrder: order } : prev)
+      })
+
+      socket.on('disconnect', () => {
+        // Intentar reconectar automáticamente (socket.io lo hace por defecto)
+      })
+    }
+    document.head.appendChild(script)
+
+    return () => {
+      socketRef.current?.disconnect()
+      socketRef.current = null
+    }
+  }, [riderCode])
+
+  // Auto-refresh cada 30 segundos como fallback al WebSocket
   useEffect(() => {
     if (!riderCode) return
     const interval = setInterval(() => refresh(), 30000)
@@ -383,6 +417,8 @@ export default function RiderPage() {
   }
 
   const handleLogout = () => {
+    socketRef.current?.disconnect()
+    socketRef.current = null
     localStorage.removeItem('riderCode')
     setRiderCode(null)
     setRiderData(null)

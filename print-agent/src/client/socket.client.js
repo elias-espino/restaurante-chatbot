@@ -1,6 +1,20 @@
 const { io } = require('socket.io-client');
-const { printTicket } = require('../printer/escpos.printer');
 const logger = require('../utils/logger');
+
+// ── Dispatcher de transporte ────────────────────────────────────────────────
+// Selecciona el módulo de impresión según PRINTER_TYPE:
+//   USB      → escpos-usb (nativo, por libusb)            — Win/Mac/Linux
+//   NETWORK  → escpos-network (TCP/IP puerto 9100)         — Win/Mac/Linux
+//   SERIAL   → puerto serie / COM virtual (Bluetooth, RS-232) — Win/Mac/Linux
+//   SPOOLER  → cola del SO en modo RAW (winspool / CUPS)   — Win/Mac/Linux
+const PRINTER_TYPE = (process.env.PRINTER_TYPE || 'USB').toUpperCase();
+const printTicket = (() => {
+  if (PRINTER_TYPE === 'SPOOLER') {
+    return require('../printer/spooler.printer').printTicket;
+  }
+  // USB, NETWORK y SERIAL los maneja el módulo escpos clásico
+  return require('../printer/escpos.printer').printTicket;
+})();
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const AGENT_TOKEN  = process.env.AGENT_TOKEN;

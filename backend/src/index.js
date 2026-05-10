@@ -59,6 +59,22 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Rider: unirse a su room usando riderCode (sin JWT)
+  socket.on('rider:join', async ({ riderCode }) => {
+    try {
+      if (!riderCode || !/^[0-9a-f]{1,4}$/.test(riderCode)) return;
+      const rider = await prisma.rider.findFirst({
+        where: { riderCode: riderCode.toLowerCase(), isActive: true },
+      });
+      if (!rider) { socket.emit('rider:join:error', 'Código inválido'); return; }
+      socket.join(`rider:${rider.id}`);
+      socket.emit('rider:join:ok', { riderId: rider.id, name: rider.name });
+      logger.info(`Rider conectado: ${rider.name} (${rider.riderCode})`);
+    } catch (err) {
+      logger.error('rider:join error:', err);
+    }
+  });
+
   // Print-Agent reporta resultado de impresión
   socket.on('print:result', async ({ jobId, success: printed, error: printError }) => {
     await updateJobStatus(jobId, printed ? 'PRINTED' : 'FAILED', printError);

@@ -5,7 +5,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { success, error } = require('../utils/response');
 const logger = require('../utils/logger');
-const { notifyOrderStatus } = require('../whatsapp/notifications.service');
+const { notifyOrderStatus, notifyRiderAssigned } = require('../whatsapp/notifications.service');
 
 const prisma = new PrismaClient();
 
@@ -196,11 +196,18 @@ const assignRider = async (req, res) => {
       data: { isAvailable: false },
     });
 
-    // Emitir evento WebSocket
+    // Emitir evento WebSocket al backoffice
     const io = req.app.get('io');
     if (io) {
       io.to(`restaurant:${req.restaurantId}`).emit('order:updated', updated);
+      // Notificar al rider en tiempo real → su pantalla se actualiza sin refresh
+      io.to(`rider:${rider.id}`).emit('rider:order', updated);
     }
+
+    // Notificar al cliente por WhatsApp con el código de entrega
+    notifyRiderAssigned(req.restaurantId, updated).catch(err =>
+      logger.error('Error en notificación WhatsApp (rider asignado):', err)
+    );
 
     return success(res, updated, `Rider asignado. Código de entrega: ${deliveryCode}`);
   } catch (err) {

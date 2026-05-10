@@ -1,17 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, Pencil, Eye, EyeOff, Trash2, X } from 'lucide-react'
+import { Plus, Pencil, Eye, EyeOff, Trash2, X, Printer } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
-const ItemModal = ({ item, categories, onClose, onSave }) => {
-  const [form, setForm] = useState(item || { categoryId: categories[0]?.id || '', name: '', description: '', price: '', isAvailable: true })
+const ItemModal = ({ item, categories, printers, onClose, onSave }) => {
+  const [form, setForm] = useState(item || { categoryId: categories[0]?.id || '', name: '', description: '', price: '', isAvailable: true, printerId: '' })
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
-    try { await onSave(form) } finally { setSaving(false) }
+    try { await onSave({ ...form, printerId: form.printerId || null }) } finally { setSaving(false) }
   }
 
   return (
@@ -39,6 +39,14 @@ const ItemModal = ({ item, categories, onClose, onSave }) => {
           <div>
             <label className="label">Precio</label>
             <input className="input" type="number" step="0.01" min="0" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} required />
+          </div>
+          <div>
+            <label className="label flex items-center gap-1"><Printer size={14} /> Impresora</label>
+            <select className="input" value={form.printerId || ''} onChange={e => setForm(f => ({ ...f, printerId: e.target.value }))}>
+              <option value="">— Impresora por defecto —</option>
+              {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Si no se asigna, se usa la impresora principal del restaurante.</p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.isAvailable} onChange={e => setForm(f => ({ ...f, isAvailable: e.target.checked }))} className="rounded" />
@@ -95,6 +103,11 @@ export default function MenuPage() {
     queryFn: () => api.get('/menu/items', { params: activeCategory ? { categoryId: activeCategory } : {} }).then(r => r.data.data),
   })
 
+  const { data: printers = [] } = useQuery({
+    queryKey: ['printers'],
+    queryFn: () => api.get('/print/printers').then(r => r.data.data),
+  })
+
   const invalidate = () => { queryClient.invalidateQueries({ queryKey: ['categories'] }); queryClient.invalidateQueries({ queryKey: ['menu-items'] }) }
 
   const saveItem = useMutation({
@@ -145,9 +158,14 @@ export default function MenuPage() {
         {filteredItems.map(item => (
           <div key={item.id} className={`card p-4 flex items-center gap-4 ${!item.isAvailable ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="font-medium text-sm text-gray-900">{item.name}</p>
                 {!item.isAvailable && <span className="badge bg-red-100 text-red-600 text-xs">No disponible</span>}
+                {item.printer && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-xs font-medium">
+                    <Printer size={10} /> {item.printer.name}
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-400 truncate">{item.description}</p>
               <p className="text-xs text-gray-500 mt-0.5">{item.category?.emoji} {item.category?.name}</p>
@@ -174,7 +192,7 @@ export default function MenuPage() {
         )}
       </div>
 
-      {itemModal !== null && <ItemModal item={itemModal?.id ? itemModal : null} categories={categories} onClose={() => setItemModal(null)} onSave={(f) => saveItem.mutateAsync(f)} />}
+      {itemModal !== null && <ItemModal item={itemModal?.id ? itemModal : null} categories={categories} printers={printers} onClose={() => setItemModal(null)} onSave={(f) => saveItem.mutateAsync(f)} />}
       {catModal !== null && <CategoryModal cat={catModal?.id ? catModal : null} onClose={() => setCatModal(null)} onSave={(f) => saveCat.mutateAsync(f)} />}
     </div>
   )

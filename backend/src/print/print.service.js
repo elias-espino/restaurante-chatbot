@@ -4,44 +4,85 @@ const logger = require('../utils/logger');
 const prisma = new PrismaClient();
 
 // ─────────────────────────────────────────────
-// Crear un job de impresión para una orden
+// Crear jobs de impresión para una orden
+// Agrupa los items por impresora asignada.
+// Items sin impresora van a la impresora default del restaurante.
 // ─────────────────────────────────────────────
 const createPrintJob = async (restaurantId, order) => {
   try {
-    // Buscar impresora activa del restaurante
-    const printer = await prisma.printer.findFirst({
-      where: { restaurantId, isActive: true },
+    // Obtener los menuItems con su impresora asignada
+    const menuItemIds = order.items.map(i => i.menuItemId).filter(Boolean);
+    const menuItems = await prisma.menuItem.findMany({
+      where: { id: { in: menuItemIds } },
+      select: { id: true, printerId: true },
     });
 
-    if (!printer) {
-      logger.warn(`No hay impresora activa para restaurante ${restaurantId}`);
+    const printerMap = {};
+    for (const mi of menuItems) {
+      printerMap[mi.id] = mi.printerId || null;
+    }
+
+    // Impresora por defecto del restaurante (para items sin asignación)
+    const defaultPrinter = await prisma.printer.findFirst({
+      where: { restaurantId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Agrupar items por impresora
+    // { printerId: [orderItems] }
+    const groups = {};
+
+    for (const item of order.items) {
+      const assignedPrinterId = (item.menuItemId && printerMap[item.menuItemId])
+        ? printerMap[item.menuItemId]
+        : (defaultPrinter ? defaultPrinter.id : null);
+
+      if (!assignedPrinterId) continue;
+
+      if (!groups[assignedPrinterId]) groups[assignedPrinterId] = [];
+      groups[assignedPrinterId].push(item);
+    }
+
+    if (Object.keys(groups).length === 0) {
+      logger.warn(`No hay impresora asignada para ningún item del restaurante ${restaurantId}`);
       return null;
     }
 
-    const payload = buildTicketPayload(order);
-
-    const job = await prisma.printJob.create({
-      data: {
-        restaurantId,
-        printerId: printer.id,
-        orderId: order.id,
-        status: 'PENDING',
-        payload,
-      },
-    });
-
-    logger.info(`PrintJob creado: ${job.id} para orden #${order.orderNumber}`);
-
-    // Notificar al print-agent vía WebSocket
     const io = global.io;
-    if (io && printer.isOnline) {
-      io.to(`printer:${printer.id}`).emit('print:job', { jobId: job.id, payload });
-      await prisma.printJob.update({ where: { id: job.id }, data: { status: 'SENT' } });
-    } else {
-      logger.warn(`Impresora ${printer.id} offline. Job en cola.`);
+    const createdJobs = [];
+
+    for (const [printerId, items] of Object.entries(groups)) {
+      const printer = await prisma.printer.findUnique({ where: { id: printerId } });
+      if (!printer || !printer.isActive) {
+        logger.warn(`Impresora ${printerId} no encontrada o inactiva, saltando grupo.`);
+        continue;
+      }
+
+      const payload = buildTicketPayload(order, items);
+
+      const job = await prisma.printJob.create({
+        data: {
+          restaurantId,
+          printerId,
+          orderId: order.id,
+          status: 'PENDING',
+          payload,
+        },
+      });
+
+      logger.info(`PrintJob creado: ${job.id} → impresora "${printer.name}" (${items.length} items) para orden #${order.orderNumber}`);
+
+      if (io && printer.isOnline) {
+        io.to(`printer:${printerId}`).emit('print:job', { jobId: job.id, payload });
+        await prisma.printJob.update({ where: { id: job.id }, data: { status: 'SENT' } });
+      } else {
+        logger.warn(`Impresora ${printerId} offline. Job en cola.`);
+      }
+
+      createdJobs.push(job);
     }
 
-    return job;
+    return createdJobs.length > 0 ? createdJobs : null;
   } catch (err) {
     logger.error('createPrintJob error:', err);
     return null;
@@ -50,13 +91,23 @@ const createPrintJob = async (restaurantId, order) => {
 
 // ─────────────────────────────────────────────
 // Construir el payload del ticket
+// Acepta un subconjunto de items para tickets por impresora.
+// Si no se pasan items, usa todos los de la orden.
 // ─────────────────────────────────────────────
-const buildTicketPayload = (order) => {
+const buildTicketPayload = (order, itemsSubset = null) => {
   const serviceTypeLabels = {
     DINE_IN: 'Mesa',
     TAKEAWAY: 'Para llevar',
     DELIVERY: 'Domicilio',
   };
+
+  const items = itemsSubset || order.items;
+  const isPartial = itemsSubset !== null && itemsSubset.length < order.items.length;
+
+  // Calcular subtotal/total del subconjunto si es parcial
+  const subTotal = isPartial
+    ? items.reduce((acc, i) => acc + Number(i.price) * i.quantity, 0)
+    : Number(order.subtotal);
 
   return {
     orderNumber: order.orderNumber,
@@ -66,16 +117,17 @@ const buildTicketPayload = (order) => {
     serviceTypeLabel: serviceTypeLabels[order.serviceType] || order.serviceType,
     tableNumber: order.table?.number || null,
     deliveryAddress: order.deliveryAddress || null,
-    items: order.items.map(item => ({
+    isPartialTicket: isPartial,
+    items: items.map(item => ({
       name: item.name,
       quantity: item.quantity,
       price: Number(item.price),
       total: Number(item.price) * item.quantity,
       notes: item.notes || null,
     })),
-    subtotal: Number(order.subtotal),
-    tax: Number(order.tax),
-    total: Number(order.total),
+    subtotal: subTotal,
+    tax: isPartial ? 0 : Number(order.tax),
+    total: isPartial ? subTotal : Number(order.total),
     notes: order.notes || null,
     createdAt: order.confirmedAt || order.createdAt,
   };

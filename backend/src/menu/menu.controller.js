@@ -85,7 +85,10 @@ const getItems = async (req, res) => {
 
     const items = await prisma.menuItem.findMany({
       where,
-      include: { category: { select: { id: true, name: true, emoji: true } } },
+      include: {
+        category: { select: { id: true, name: true, emoji: true } },
+        printer: { select: { id: true, name: true } },
+      },
       orderBy: [{ categoryId: 'asc' }, { sortOrder: 'asc' }],
     });
     return success(res, items);
@@ -97,7 +100,7 @@ const getItems = async (req, res) => {
 
 const createItem = async (req, res) => {
   try {
-    const { categoryId, name, description, price, imageUrl, options, sortOrder } = req.body;
+    const { categoryId, name, description, price, imageUrl, options, sortOrder, printerId } = req.body;
     if (!categoryId || !name || price === undefined) {
       return error(res, 'categoryId, name y price son requeridos', 400);
     }
@@ -106,6 +109,14 @@ const createItem = async (req, res) => {
       where: { id: categoryId, restaurantId: req.restaurantId },
     });
     if (!category) return error(res, 'Categoría no encontrada', 404);
+
+    // Validar que la impresora pertenece al restaurante (si se especificó)
+    if (printerId) {
+      const printer = await prisma.printer.findFirst({
+        where: { id: printerId, restaurantId: req.restaurantId },
+      });
+      if (!printer) return error(res, 'Impresora no encontrada', 404);
+    }
 
     const item = await prisma.menuItem.create({
       data: {
@@ -117,6 +128,11 @@ const createItem = async (req, res) => {
         imageUrl,
         options,
         sortOrder: sortOrder || 0,
+        printerId: printerId || null,
+      },
+      include: {
+        category: { select: { id: true, name: true, emoji: true } },
+        printer: { select: { id: true, name: true } },
       },
     });
     return success(res, item, 'Item creado', 201);
@@ -129,14 +145,29 @@ const createItem = async (req, res) => {
 const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = req.body;
+    const { printerId, ...rest } = req.body;
 
     const item = await prisma.menuItem.findFirst({
       where: { id, restaurantId: req.restaurantId },
     });
     if (!item) return error(res, 'Item no encontrado', 404);
 
-    const updated = await prisma.menuItem.update({ where: { id }, data });
+    // Validar impresora si se especificó
+    if (printerId !== undefined && printerId !== null) {
+      const printer = await prisma.printer.findFirst({
+        where: { id: printerId, restaurantId: req.restaurantId },
+      });
+      if (!printer) return error(res, 'Impresora no encontrada', 404);
+    }
+
+    const updated = await prisma.menuItem.update({
+      where: { id },
+      data: { ...rest, printerId: printerId ?? null },
+      include: {
+        category: { select: { id: true, name: true, emoji: true } },
+        printer: { select: { id: true, name: true } },
+      },
+    });
     return success(res, updated, 'Item actualizado');
   } catch (err) {
     logger.error('updateItem:', err);
