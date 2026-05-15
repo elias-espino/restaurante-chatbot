@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { PrismaClient } = require('@prisma/client');
 const { authenticate, authorize } = require('../middleware/auth');
-const { flushPendingJobs } = require('./print.service');
+const { flushPendingJobs, createPrintJob, createCustomerTicketJob } = require('./print.service');
 const { success, error } = require('../utils/response');
 
 const prisma = new PrismaClient();
@@ -59,6 +59,36 @@ router.delete('/printers/:id', authorize('ADMIN'), async (req, res) => {
     return success(res, {}, 'Impresora eliminada');
   } catch (err) {
     return error(res, 'Error al eliminar impresora', 500);
+  }
+});
+
+// Reimprimir comanda de cocina de una orden (con leyenda REIMPRESION)
+router.post('/orders/:orderId/reprint/kitchen', authorize('ADMIN', 'STAFF'), async (req, res) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.orderId, restaurantId: req.restaurantId },
+      include: { items: true, table: true },
+    });
+    if (!order) return error(res, 'Orden no encontrada', 404);
+    await createPrintJob(req.restaurantId, order, { reprint: true });
+    return success(res, {}, 'Comanda reenviada a impresora');
+  } catch (err) {
+    return error(res, 'Error al reimprimir comanda', 500);
+  }
+});
+
+// Reimprimir ticket del cliente de una orden
+router.post('/orders/:orderId/reprint/customer', authorize('ADMIN', 'STAFF'), async (req, res) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { id: req.params.orderId, restaurantId: req.restaurantId },
+      include: { items: true, table: true },
+    });
+    if (!order) return error(res, 'Orden no encontrada', 404);
+    await createCustomerTicketJob(req.restaurantId, order);
+    return success(res, {}, 'Ticket del cliente reenviado a impresora');
+  } catch (err) {
+    return error(res, 'Error al reimprimir ticket', 500);
   }
 });
 

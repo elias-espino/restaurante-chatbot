@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
-import { PencilLine, Bike, X, MapPin } from 'lucide-react'
+import { PencilLine, Bike, X, MapPin, Printer } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -132,6 +132,18 @@ export default function OrdersPage() {
       toast.success('Estado actualizado')
     },
     onError: () => toast.error('Error al actualizar'),
+  })
+
+  const { mutate: reprintKitchen, isPending: reprintingKitchen } = useMutation({
+    mutationFn: (id) => api.post(`/print/orders/${id}/reprint/kitchen`),
+    onSuccess: () => toast.success('Comanda enviada a impresora'),
+    onError: () => toast.error('Error al reimprimir comanda'),
+  })
+
+  const { mutate: reprintCustomer, isPending: reprintingCustomer } = useMutation({
+    mutationFn: (id) => api.post(`/print/orders/${id}/reprint/customer`),
+    onSuccess: () => toast.success('Ticket enviado a impresora'),
+    onError: () => toast.error('Error al reimprimir ticket'),
   })
 
   // Maneja click en el botón de avance de estado
@@ -271,6 +283,26 @@ export default function OrdersPage() {
                         Cancelar
                       </button>
                     )}
+
+                    {/* Botones de reimpresión */}
+                    <div className="flex gap-1 mt-2">
+                      <button
+                        title="Reimprimir comanda (cocina)"
+                        className="btn text-xs py-1 px-2 text-gray-500 hover:bg-gray-100 flex items-center gap-1 flex-1 justify-center"
+                        onClick={() => reprintKitchen(order.id)}
+                        disabled={reprintingKitchen}
+                      >
+                        <Printer size={11} /> Comanda
+                      </button>
+                      <button
+                        title="Reimprimir ticket del cliente"
+                        className="btn text-xs py-1 px-2 text-gray-500 hover:bg-gray-100 flex items-center gap-1 flex-1 justify-center"
+                        onClick={() => reprintCustomer(order.id)}
+                        disabled={reprintingCustomer}
+                      >
+                        <Printer size={11} /> Ticket
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -60,7 +60,18 @@ const buildTicket = (printer, payload, onDone) => {
     .align('LT')
     .style('B')
     .text(`ORDEN #${payload.orderNumber}`)
-    .style('NORMAL')
+    .style('NORMAL');
+
+  if (payload.isReprint) {
+    printer
+      .align('CT')
+      .style('B')
+      .text('*** REIMPRESION ***')
+      .style('NORMAL')
+      .align('LT');
+  }
+
+  printer
     .text(`Fecha : ${dateStr}  ${timeStr}`)
     .text(`Cliente: ${payload.customerName}`)
     .text(`Tel    : ${payload.customerPhone}`)

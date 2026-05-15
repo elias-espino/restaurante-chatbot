@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Agrupa los items por impresora asignada.
 // Items sin impresora van a la impresora default del restaurante.
 // ─────────────────────────────────────────────
-const createPrintJob = async (restaurantId, order) => {
+const createPrintJob = async (restaurantId, order, options = {}) => {
   try {
     // Obtener los menuItems con su impresora asignada
     const menuItemIds = order.items.map(i => i.menuItemId).filter(Boolean);
@@ -58,7 +58,7 @@ const createPrintJob = async (restaurantId, order) => {
         continue;
       }
 
-      const payload = buildTicketPayload(order, items);
+      const payload = buildTicketPayload(order, items, { reprint: options.reprint || false });
 
       const job = await prisma.printJob.create({
         data: {
@@ -94,7 +94,7 @@ const createPrintJob = async (restaurantId, order) => {
 // Acepta un subconjunto de items para tickets por impresora.
 // Si no se pasan items, usa todos los de la orden.
 // ─────────────────────────────────────────────
-const buildTicketPayload = (order, primaryItems = null) => {
+const buildTicketPayload = (order, primaryItems = null, options = {}) => {
   const serviceTypeLabels = {
     DINE_IN: 'Mesa',
     TAKEAWAY: 'Para llevar',
@@ -111,6 +111,7 @@ const buildTicketPayload = (order, primaryItems = null) => {
     serviceTypeLabel: serviceTypeLabels[order.serviceType] || order.serviceType,
     tableNumber: order.table?.number || null,
     deliveryAddress: order.deliveryAddress || null,
+    isReprint: options.reprint || false,
     // Todos los items de la orden; isPrimary=true → van a esta impresora (negrita)
     items: order.items.map(item => ({
       name: item.name,
