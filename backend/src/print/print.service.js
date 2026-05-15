@@ -94,20 +94,14 @@ const createPrintJob = async (restaurantId, order) => {
 // Acepta un subconjunto de items para tickets por impresora.
 // Si no se pasan items, usa todos los de la orden.
 // ─────────────────────────────────────────────
-const buildTicketPayload = (order, itemsSubset = null) => {
+const buildTicketPayload = (order, primaryItems = null) => {
   const serviceTypeLabels = {
     DINE_IN: 'Mesa',
     TAKEAWAY: 'Para llevar',
     DELIVERY: 'Domicilio',
   };
 
-  const items = itemsSubset || order.items;
-  const isPartial = itemsSubset !== null && itemsSubset.length < order.items.length;
-
-  // Calcular subtotal/total del subconjunto si es parcial
-  const subTotal = isPartial
-    ? items.reduce((acc, i) => acc + Number(i.price) * i.quantity, 0)
-    : Number(order.subtotal);
+  const primaryIds = new Set((primaryItems || order.items).map(i => i.id));
 
   return {
     orderNumber: order.orderNumber,
@@ -117,17 +111,13 @@ const buildTicketPayload = (order, itemsSubset = null) => {
     serviceTypeLabel: serviceTypeLabels[order.serviceType] || order.serviceType,
     tableNumber: order.table?.number || null,
     deliveryAddress: order.deliveryAddress || null,
-    isPartialTicket: isPartial,
-    items: items.map(item => ({
+    // Todos los items de la orden; isPrimary=true → van a esta impresora (negrita)
+    items: order.items.map(item => ({
       name: item.name,
       quantity: item.quantity,
-      price: Number(item.price),
-      total: Number(item.price) * item.quantity,
       notes: item.notes || null,
+      isPrimary: primaryIds.has(item.id),
     })),
-    subtotal: subTotal,
-    tax: isPartial ? 0 : Number(order.tax),
-    total: isPartial ? subTotal : Number(order.total),
     notes: order.notes || null,
     createdAt: order.confirmedAt || order.createdAt,
   };

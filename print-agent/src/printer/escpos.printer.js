@@ -76,30 +76,27 @@ const buildTicket = (printer, payload, onDone) => {
   printer
     .drawLine()
     .style('B')
-    .text(`${padEnd('DESCRIPCIÓN', PAPER_WIDTH - 12)}${'CANT'.padStart(4)}${'TOTAL'.padStart(8)}`)
+    .text(`${padEnd('DESCRIPCIÓN', PAPER_WIDTH - 5)}${'CANT'.padStart(4)}`)
     .style('NORMAL')
     .drawLine();
 
-  // Items
+  // Items: negrita = dirigidos a esta impresora / normal = resto de la orden
   for (const item of payload.items) {
-    const totalStr = `$${item.total.toFixed(2)}`;
     const qtyStr = `x${item.quantity}`;
-    const nameWidth = PAPER_WIDTH - qtyStr.length - totalStr.length - 2;
+    const nameWidth = PAPER_WIDTH - qtyStr.length - 1;
     const name = item.name.substring(0, nameWidth).padEnd(nameWidth);
-    printer.text(`${name} ${qtyStr} ${totalStr}`);
+    if (item.isPrimary) {
+      printer.style('B').text(`${name} ${qtyStr}`).style('NORMAL');
+    } else {
+      printer.text(`${name} ${qtyStr}`);
+    }
     if (item.notes) printer.text(`  * ${item.notes}`);
   }
 
   printer
     .drawLine()
-    .align('RT')
-    .style('B')
-    .text(`SUBTOTAL: $${payload.subtotal.toFixed(2)}`)
-    .text(`TOTAL:    $${payload.total.toFixed(2)}`)
-    .style('NORMAL')
     .align('CT')
-    .drawLine()
-    .text('¡Gracias por su preferencia!')
+    .text('*** USO INTERNO ***')
     .text(' ')
     .cut()
     .close(onDone);
