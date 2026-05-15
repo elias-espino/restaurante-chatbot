@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const { chat } = require('./gemini.service');
 const { sendText, sendLocationRequest } = require('../whatsapp/whatsapp.api');
-const { createPrintJob } = require('../print/print.service');
+const { createPrintJob, createCustomerTicketJob } = require('../print/print.service');
 const { createIncidencia } = require('../incidents/incidents.controller');
 const logger = require('../utils/logger');
 
@@ -128,6 +128,7 @@ const executeAction = async (action, restaurantId, phoneNumber) => {
 
     // Imprimir y emitir al backoffice
     await createPrintJob(restaurantId, order);
+    await createCustomerTicketJob(restaurantId, order);
     const io = global.io;
     if (io) io.to(`restaurant:${restaurantId}`).emit('order:new', order);
 
