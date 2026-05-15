@@ -2,7 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { v4: uuidv4 } = require('uuid');
 const { STATES, getSession, updateSession, addToCart, removeFromCart, getCartTotal, formatCartSummary, formatPrice } = require('./session.manager');
 const { sendText, sendButtons, sendList, markAsRead, sendLocationRequest } = require('./whatsapp.api');
-const { createPrintJob } = require('../print/print.service');
+const { createPrintJob, createCustomerTicketJob } = require('../print/print.service');
 const logger = require('../utils/logger');
 
 const prisma = new PrismaClient();
@@ -496,8 +496,9 @@ const placeOrder = async (restaurantId, config, phoneNumber, session, cart, data
       include: { items: true, table: true },
     });
 
-    // Crear job de impresión
+    // Crear jobs de impresión (cocina + ticket cliente)
     await createPrintJob(restaurantId, order);
+    await createCustomerTicketJob(restaurantId, order);
 
     // Emitir al backoffice en tiempo real
     const io = global.io;

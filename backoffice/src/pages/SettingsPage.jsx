@@ -135,6 +135,24 @@ export default function SettingsPage() {
     onError: () => toast.error('Error al eliminar impresora'),
   })
 
+  const { data: ticketConfig = {}, refetch: refetchTicketConfig } = useQuery({
+    queryKey: ['ticketConfig'],
+    queryFn: () => api.get('/restaurants/ticket').then(r => r.data.data),
+    enabled: tab === 'impresoras',
+  })
+  const [customerTicketPrinterId, setCustomerTicketPrinterId] = useState('')
+  // sincronizar cuando llegue el dato
+  const ticketPrinterIdFromServer = ticketConfig?.customerTicketPrinterId ?? ''
+  if (customerTicketPrinterId === '' && ticketPrinterIdFromServer !== '') {
+    setCustomerTicketPrinterId(ticketPrinterIdFromServer)
+  }
+
+  const saveTicketConfig = useMutation({
+    mutationFn: () => api.put('/restaurants/ticket', { customerTicketPrinterId: customerTicketPrinterId || null }),
+    onSuccess: () => { toast.success('Configuración de ticket guardada'); refetchTicketConfig() },
+    onError: () => toast.error('Error al guardar configuración de ticket'),
+  })
+
   const copyToken = (token, id) => {
     navigator.clipboard.writeText(token).then(() => {
       setCopiedId(id)
@@ -509,6 +527,31 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Ticket del cliente */}
+          <div className="card p-5 space-y-4">
+            <div>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Printer size={16} /> Ticket del cliente</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Se imprime automáticamente al confirmar una orden. Incluye todos los items con precios y datos del cliente.</p>
+            </div>
+            <div>
+              <label className="label">Impresora para ticket del cliente</label>
+              <select
+                className="input"
+                value={customerTicketPrinterId}
+                onChange={e => setCustomerTicketPrinterId(e.target.value)}
+              >
+                <option value="">— Sin ticket de cliente —</option>
+                {printers.map(p => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.type}){p.isOnline ? '' : ' — Offline'}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">Si no se selecciona una impresora, el ticket del cliente no se imprime.</p>
+            </div>
+            <button className="btn-primary text-sm" onClick={() => saveTicketConfig.mutate()} disabled={saveTicketConfig.isPending}>
+              {saveTicketConfig.isPending ? 'Guardando...' : 'Guardar'}
+            </button>
           </div>
 
           {/* Guía de configuración del agente */}

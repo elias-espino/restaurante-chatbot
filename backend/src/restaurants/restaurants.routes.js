@@ -16,5 +16,7 @@ router.get('/tables', ctrl.getTables);
 router.post('/tables', authorize('ADMIN'), ctrl.upsertTable);
 router.get('/delivery', authorize('ADMIN'), ctrl.getDeliveryConfig);
 router.put('/delivery', authorize('ADMIN'), ctrl.updateDeliveryConfig);
+router.get('/ticket', authorize('ADMIN'), ctrl.getTicketConfig);
+router.put('/ticket', authorize('ADMIN'), ctrl.updateTicketConfig);
 
 module.exports = router;

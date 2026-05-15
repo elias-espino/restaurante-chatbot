@@ -182,4 +182,36 @@ const updateDeliveryConfig = async (req, res) => {
   }
 };
 
-module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable, getAiConfig, updateAiConfig, getDeliveryConfig, updateDeliveryConfig };
+const getTicketConfig = async (req, res) => {
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: req.restaurantId },
+      select: { customerTicketPrinterId: true },
+    });
+    return success(res, restaurant);
+  } catch (err) {
+    return error(res, 'Error al obtener configuración de ticket', 500);
+  }
+};
+
+const updateTicketConfig = async (req, res) => {
+  try {
+    const { customerTicketPrinterId } = req.body;
+    if (customerTicketPrinterId) {
+      const printer = await prisma.printer.findFirst({
+        where: { id: customerTicketPrinterId, restaurantId: req.restaurantId },
+      });
+      if (!printer) return error(res, 'Impresora no encontrada', 404);
+    }
+    const updated = await prisma.restaurant.update({
+      where: { id: req.restaurantId },
+      data: { customerTicketPrinterId: customerTicketPrinterId || null },
+      select: { customerTicketPrinterId: true },
+    });
+    return success(res, updated, 'Configuración de ticket actualizada');
+  } catch (err) {
+    return error(res, 'Error al actualizar configuración de ticket', 500);
+  }
+};
+
+module.exports = { getRestaurant, updateRestaurant, updateSchedules, updateWhatsappConfig, getUsers, createUser, updateUser, getTables, upsertTable, getAiConfig, updateAiConfig, getDeliveryConfig, updateDeliveryConfig, getTicketConfig, updateTicketConfig };

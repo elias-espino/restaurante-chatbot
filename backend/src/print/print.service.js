@@ -124,6 +124,68 @@ const buildTicketPayload = (order, primaryItems = null) => {
 };
 
 // ─────────────────────────────────────────────
+// Ticket del cliente (con precios, sin distinción de impresoras)
+// ─────────────────────────────────────────────
+const createCustomerTicketJob = async (restaurantId, order) => {
+  try {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { customerTicketPrinterId: true },
+    });
+
+    const printerId = restaurant?.customerTicketPrinterId;
+    if (!printerId) return null; // no configurada, no imprimir
+
+    const printer = await prisma.printer.findFirst({
+      where: { id: printerId, restaurantId, isActive: true },
+    });
+    if (!printer) return null;
+
+    const serviceTypeLabels = { DINE_IN: 'Mesa', TAKEAWAY: 'Para llevar', DELIVERY: 'Domicilio' };
+    const total = Number(order.total);
+    const subtotal = Number(order.subtotal);
+
+    const payload = {
+      isCustomerTicket: true,
+      orderNumber: order.orderNumber,
+      customerName: order.customerName || 'Cliente',
+      customerPhone: order.customerPhone,
+      serviceType: order.serviceType,
+      serviceTypeLabel: serviceTypeLabels[order.serviceType] || order.serviceType,
+      tableNumber: order.table?.number || null,
+      deliveryAddress: order.deliveryAddress || null,
+      items: order.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        price: Number(item.price),
+        total: Number(item.price) * item.quantity,
+        notes: item.notes || null,
+      })),
+      subtotal,
+      total,
+      notes: order.notes || null,
+      createdAt: order.confirmedAt || order.createdAt,
+    };
+
+    const job = await prisma.printJob.create({
+      data: { restaurantId, printerId, orderId: order.id, status: 'PENDING', payload },
+    });
+
+    const io = global.io;
+    if (io && printer.isOnline) {
+      io.to(`printer:${printerId}`).emit('print:job', { jobId: job.id, payload });
+      await prisma.printJob.update({ where: { id: job.id }, data: { status: 'SENT' } });
+    }
+
+    logger.info(`CustomerTicketJob creado: ${job.id} → impresora "${printer.name}" para orden #${order.orderNumber}`);
+    return job;
+  } catch (err) {
+    logger.error('createCustomerTicketJob error:', err);
+    return null;
+  }
+};
+
+// ─────────────────────────────────────────────
 // Reencolar jobs pendientes (al conectar una impresora)
 // ─────────────────────────────────────────────
 const flushPendingJobs = async (printerId) => {
@@ -162,4 +224,4 @@ const updateJobStatus = async (jobId, status, error = null) => {
   });
 };
 
-module.exports = { createPrintJob, flushPendingJobs, updateJobStatus };
+module.exports = { createPrintJob, createCustomerTicketJob, flushPendingJobs, updateJobStatus };

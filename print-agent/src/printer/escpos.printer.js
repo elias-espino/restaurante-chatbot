@@ -73,33 +73,64 @@ const buildTicket = (printer, payload, onDone) => {
     printer.text(`Dir    : ${payload.deliveryAddress.substring(0, PAPER_WIDTH - 7)}`);
   }
 
-  printer
-    .drawLine()
-    .style('B')
-    .text(`${padEnd('DESCRIPCIÓN', PAPER_WIDTH - 5)}${'CANT'.padStart(4)}`)
-    .style('NORMAL')
-    .drawLine();
+  if (payload.isCustomerTicket) {
+    // ── Ticket cliente: con precios ─────────────────────────
+    printer
+      .drawLine()
+      .style('B')
+      .text(`${padEnd('DESCRIPCIÓN', PAPER_WIDTH - 12)}${'CANT'.padStart(4)}${'TOTAL'.padStart(8)}`)
+      .style('NORMAL')
+      .drawLine();
 
-  // Items: negrita = dirigidos a esta impresora / normal = resto de la orden
-  for (const item of payload.items) {
-    const qtyStr = `x${item.quantity}`;
-    const nameWidth = PAPER_WIDTH - qtyStr.length - 1;
-    const name = item.name.substring(0, nameWidth).padEnd(nameWidth);
-    if (item.isPrimary) {
-      printer.style('B').text(`${name} ${qtyStr}`).style('NORMAL');
-    } else {
-      printer.text(`${name} ${qtyStr}`);
+    for (const item of payload.items) {
+      const totalStr = `$${item.total.toFixed(2)}`;
+      const qtyStr = `x${item.quantity}`;
+      const nameWidth = PAPER_WIDTH - qtyStr.length - totalStr.length - 2;
+      const name = item.name.substring(0, nameWidth).padEnd(nameWidth);
+      printer.text(`${name} ${qtyStr} ${totalStr}`);
+      if (item.notes) printer.text(`  * ${item.notes}`);
     }
-    if (item.notes) printer.text(`  * ${item.notes}`);
+
+    printer
+      .drawLine()
+      .align('RT')
+      .style('B')
+      .text(`SUBTOTAL: $${payload.subtotal.toFixed(2)}`)
+      .text(`TOTAL:    $${payload.total.toFixed(2)}`)
+      .style('NORMAL')
+      .align('CT')
+      .drawLine()
+      .text('¡Gracias por su preferencia!')
+      .text(' ');
+  } else {
+    // ── Ticket cocina: sin precios, negrita = esta impresora ─
+    printer
+      .drawLine()
+      .style('B')
+      .text(`${padEnd('DESCRIPCIÓN', PAPER_WIDTH - 5)}${'CANT'.padStart(4)}`)
+      .style('NORMAL')
+      .drawLine();
+
+    for (const item of payload.items) {
+      const qtyStr = `x${item.quantity}`;
+      const nameWidth = PAPER_WIDTH - qtyStr.length - 1;
+      const name = item.name.substring(0, nameWidth).padEnd(nameWidth);
+      if (item.isPrimary) {
+        printer.style('B').text(`${name} ${qtyStr}`).style('NORMAL');
+      } else {
+        printer.text(`${name} ${qtyStr}`);
+      }
+      if (item.notes) printer.text(`  * ${item.notes}`);
+    }
+
+    printer
+      .drawLine()
+      .align('CT')
+      .text('*** USO INTERNO ***')
+      .text(' ');
   }
 
-  printer
-    .drawLine()
-    .align('CT')
-    .text('*** USO INTERNO ***')
-    .text(' ')
-    .cut()
-    .close(onDone);
+  printer.cut().close(onDone);
 };
 
 const printTicket = (payload) => {

@@ -29,6 +29,7 @@ model Restaurant {
   aiEnabled                Boolean  @default(false)
   aiPersonality            String?  @db.Text
   deliveryLocationEnabled  Boolean  @default(false)
+  customerTicketPrinterId  String?
   createdAt                DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
