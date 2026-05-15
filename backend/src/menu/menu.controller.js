@@ -145,7 +145,7 @@ const createItem = async (req, res) => {
 const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { printerId, ...rest } = req.body;
+    const { name, description, price, imageUrl, options, sortOrder, isAvailable, categoryId, printerId } = req.body;
 
     const item = await prisma.menuItem.findFirst({
       where: { id, restaurantId: req.restaurantId },
@@ -160,9 +160,20 @@ const updateItem = async (req, res) => {
       if (!printer) return error(res, 'Impresora no encontrada', 404);
     }
 
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (description !== undefined) data.description = description;
+    if (price !== undefined) data.price = price;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (options !== undefined) data.options = options;
+    if (sortOrder !== undefined) data.sortOrder = sortOrder;
+    if (isAvailable !== undefined) data.isAvailable = isAvailable;
+    if (categoryId !== undefined) data.categoryId = categoryId;
+    data.printerId = printerId ?? null;
+
     const updated = await prisma.menuItem.update({
       where: { id },
-      data: { ...rest, printerId: printerId ?? null },
+      data,
       include: {
         category: { select: { id: true, name: true, emoji: true } },
         printer: { select: { id: true, name: true } },
