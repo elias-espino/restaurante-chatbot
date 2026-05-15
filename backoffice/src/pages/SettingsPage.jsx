@@ -137,7 +137,7 @@ export default function SettingsPage() {
 
   const { data: ticketConfig = {}, refetch: refetchTicketConfig } = useQuery({
     queryKey: ['ticketConfig'],
-    queryFn: () => api.get('/restaurants/ticket').then(r => r.data.data),
+    queryFn: () => api.get('/restaurant/ticket').then(r => r.data.data),
     enabled: tab === 'impresoras',
   })
   const [customerTicketPrinterId, setCustomerTicketPrinterId] = useState('')
@@ -148,7 +148,7 @@ export default function SettingsPage() {
   }
 
   const saveTicketConfig = useMutation({
-    mutationFn: () => api.put('/restaurants/ticket', { customerTicketPrinterId: customerTicketPrinterId || null }),
+    mutationFn: () => api.put('/restaurant/ticket', { customerTicketPrinterId: customerTicketPrinterId || null }),
     onSuccess: () => { toast.success('Configuración de ticket guardada'); refetchTicketConfig() },
     onError: () => toast.error('Error al guardar configuración de ticket'),
   })
