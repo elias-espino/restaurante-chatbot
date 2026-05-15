@@ -1,4 +1,5 @@
-require('dotenv').config();
+const envArg = process.argv.find(a => a.startsWith('--env='));
+require('dotenv').config({ path: envArg ? envArg.split('=')[1] : '.env' });
 const { connect } = require('./client/socket.client');
 const logger = require('./utils/logger');
 
