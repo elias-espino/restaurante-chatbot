@@ -198,6 +198,97 @@ Pre-requisitos del compilador (la dep es nativa):
 
 ---
 
+## Múltiples impresoras en el mismo ordenador
+
+Si tienes varias impresoras (ej. tres PT-210 Bluetooth: cocina, barra y caja), puedes correr **una instancia del agente por impresora** en el mismo PC. Cada instancia usa su propio archivo `.env` y su propio `AGENT_TOKEN`.
+
+### 1. Identificar qué COM pertenece a cada impresora
+
+El problema con varias PT-210 es que Windows asigna puertos COM y no los etiqueta con el nombre de la impresora. La forma más fiable de mapear cuál es cuál:
+
+1. **Desempareja todas las PT-210** del Bluetooth.
+2. **Empareja solo la primera** (ej. la de cocina).
+3. Abre **Administrador de dispositivos → Puertos (COM y LPT)** — aparecerá un nuevo `COM`. Ese es tu `COM3` (o el que sea).
+4. Anota: *"PT-210 Cocina = COM3"*.
+5. Repite con las siguientes.
+
+También puedes usar el diagnóstico integrado para ver todos los puertos disponibles una vez emparejadas:
+
+```bash
+npm run list-ports
+# COM3  - Bluetooth Serial Port  (Standard Serial over Bluetooth link)
+# COM4  - Bluetooth Serial Port  (Standard Serial over Bluetooth link)
+# COM5  - Bluetooth Serial Port  (Standard Serial over Bluetooth link)
+```
+
+> Si tienes dos COM por impresora (entrante y saliente), usa siempre el **saliente** (el de número más alto de cada par).
+
+### 2. Crear un `.env` por impresora
+
+```bash
+cp .env.example .env.cocina
+cp .env.example .env.barra
+cp .env.example .env.caja
+```
+
+Edita cada archivo con su token y puerto correspondiente:
+
+**.env.cocina**
+```env
+BACKEND_URL=https://app.espino-software.online
+AGENT_TOKEN=token-copiado-del-backoffice-impresora-cocina
+PRINTER_TYPE=SERIAL
+SERIAL_PORT=COM3
+SERIAL_BAUD=9600
+PAPER_WIDTH=32
+RESTAURANT_NAME=MI RESTAURANTE
+```
+
+**.env.barra**
+```env
+BACKEND_URL=https://app.espino-software.online
+AGENT_TOKEN=token-copiado-del-backoffice-impresora-barra
+PRINTER_TYPE=SERIAL
+SERIAL_PORT=COM4
+SERIAL_BAUD=9600
+PAPER_WIDTH=32
+RESTAURANT_NAME=MI RESTAURANTE
+```
+
+*(Repite para `.env.caja` con COM5 y su token)*
+
+> Cada `AGENT_TOKEN` se genera al crear la impresora en **Backoffice → Configuración → Impresoras**. Crea una entrada por cada impresora física.
+
+### 3. Correr las instancias con pm2
+
+[pm2](https://pm2.keymetrics.io/) es un gestor de procesos para Node.js que mantiene los agentes vivos y los arranca automáticamente con Windows.
+
+```bash
+# Instalar pm2 globalmente (una sola vez)
+npm install -g pm2
+
+# Lanzar cada agente con su .env
+pm2 start src/index.js --name cocina -- --env=.env.cocina
+pm2 start src/index.js --name barra  -- --env=.env.barra
+pm2 start src/index.js --name caja   -- --env=.env.caja
+```
+
+Comandos útiles de pm2:
+
+```bash
+pm2 list              # ver estado de todos los agentes
+pm2 logs cocina       # ver logs de uno en tiempo real
+pm2 restart barra     # reiniciar uno
+pm2 stop caja         # detener uno
+pm2 delete cocina     # eliminar proceso
+
+# Persistencia: que arranquen solos al reiniciar Windows
+pm2 save
+pm2 startup
+```
+
+---
+
 ## Diagnóstico
 
 ```bash
