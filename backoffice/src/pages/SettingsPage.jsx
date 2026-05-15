@@ -126,6 +126,15 @@ export default function SettingsPage() {
     onError: () => toast.error('Error al reencolar'),
   })
 
+  const deletePrinter = useMutation({
+    mutationFn: (id) => api.delete(`/print/printers/${id}`),
+    onSuccess: () => {
+      toast.success('Impresora eliminada')
+      queryClient.invalidateQueries({ queryKey: ['printers'] })
+    },
+    onError: () => toast.error('Error al eliminar impresora'),
+  })
+
   const copyToken = (token, id) => {
     navigator.clipboard.writeText(token).then(() => {
       setCopiedId(id)
@@ -490,6 +499,12 @@ export default function SettingsPage() {
                     title="Reencolar jobs pendientes"
                     className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
                     <RefreshCw size={15} />
+                  </button>
+                  <button
+                    onClick={() => { if (window.confirm(`¿Eliminar la impresora "${p.name}"? Se borrarán también sus jobs pendientes.`)) deletePrinter.mutate(p.id) }}
+                    title="Eliminar impresora"
+                    className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
