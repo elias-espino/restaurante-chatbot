@@ -111,6 +111,8 @@ model Printer {
 enum PrinterType {
   USB
   NETWORK
+  SERIAL
+  SPOOLER
 }
 
 // ─────────────────────────────────────────────

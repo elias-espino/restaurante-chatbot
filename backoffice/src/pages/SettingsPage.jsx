@@ -402,8 +402,10 @@ export default function SettingsPage() {
                   <div>
                     <label className="label">Tipo de conexión</label>
                     <select className="input" value={newPrinter.type} onChange={e => setNewPrinter(p => ({ ...p, type: e.target.value }))}>
-                      <option value="NETWORK">Red (IP/WiFi) — recomendado</option>
+                      <option value="SERIAL">Bluetooth (PT-210) — Windows</option>
+                      <option value="NETWORK">Red (IP/WiFi)</option>
                       <option value="USB">USB</option>
+                      <option value="SPOOLER">Cola de Windows (SPOOLER)</option>
                     </select>
                   </div>
                   {newPrinter.type === 'NETWORK' && (
@@ -417,6 +419,18 @@ export default function SettingsPage() {
                         <input className="input font-mono" placeholder="9100" value={newPrinter.port} onChange={e => setNewPrinter(p => ({ ...p, port: e.target.value }))} />
                       </div>
                     </>
+                  )}
+                  {newPrinter.type === 'SERIAL' && (
+                    <div className="col-span-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                      💡 El puerto COM (ej. COM5) se configura en el <strong>.env</strong> del Print Agent.<br />
+                      Ejecuta <code className="bg-white px-1 rounded">npm run list-ports</code> en el agente para encontrar el puerto correcto.
+                    </div>
+                  )}
+                  {newPrinter.type === 'SPOOLER' && (
+                    <div className="col-span-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                      💡 El nombre de la impresora se configura en el <strong>.env</strong> del Print Agent como <code className="bg-white px-1 rounded">SPOOLER_PRINTER_NAME</code>.<br />
+                      Ejecuta <code className="bg-white px-1 rounded">npm run list-ports</code> para ver las impresoras instaladas en Windows.
+                    </div>
                   )}
                 </div>
                 <div className="flex gap-2 pt-1">
@@ -484,17 +498,18 @@ export default function SettingsPage() {
 
           {/* Guía de configuración del agente */}
           <div className="card p-5 space-y-3">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Printer size={16} /> Configurar el Print Agent</h3>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Printer size={16} /> Configurar el Print Agent (Windows)</h3>
             <ol className="text-sm text-gray-600 space-y-2 list-decimal list-inside">
               <li>Abre la carpeta <code className="bg-gray-100 px-1 rounded text-xs">restaurant-chatbot/print-agent/</code></li>
               <li>Copia <code className="bg-gray-100 px-1 rounded text-xs">.env.example</code> → <code className="bg-gray-100 px-1 rounded text-xs">.env</code></li>
-              <li>Pega el <strong>Agent Token</strong> de la impresora en <code className="bg-gray-100 px-1 rounded text-xs">AGENT_TOKEN</code></li>
-              <li>Configura <code className="bg-gray-100 px-1 rounded text-xs">PRINTER_TYPE</code> (USB o NETWORK) y la URL del backend</li>
+              <li>Pega el <strong>Agent Token</strong> en <code className="bg-gray-100 px-1 rounded text-xs">AGENT_TOKEN</code></li>
+              <li>Configura <code className="bg-gray-100 px-1 rounded text-xs">PRINTER_TYPE</code> y el puerto/IP según el tipo</li>
               <li>Corre <code className="bg-gray-100 px-1 rounded text-xs font-mono">npm install && npm start</code></li>
               <li>La impresora aparecerá como <strong>Online</strong> aquí en segundos</li>
             </ol>
-            <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
-              💡 En <strong>Mac</strong>: usa PRINTER_TYPE=NETWORK (más estable). Para USB en Mac, instala primero <code className="bg-white px-1 rounded">brew install libusb</code>.
+            <div className="p-3 bg-blue-50 rounded-lg text-xs text-blue-700 space-y-1">
+              <p>🖨️ <strong>PT-210 Bluetooth:</strong> empareja la impresora en Windows, busca el COMx en Administrador de dispositivos y pon <code className="bg-white px-1 rounded">PRINTER_TYPE=SERIAL</code> + <code className="bg-white px-1 rounded">SERIAL_PORT=COMx</code> en el .env.</p>
+              <p>🔍 Ejecuta <code className="bg-white px-1 rounded">npm run list-ports</code> en el agente para ver los puertos COM disponibles.</p>
             </div>
           </div>
         </div>

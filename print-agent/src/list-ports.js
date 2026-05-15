@@ -1,23 +1,19 @@
 #!/usr/bin/env node
 /**
- * list-ports.js
- * --------------
- * Comando de diagnóstico. Lista:
- *   1) Los puertos serie disponibles en el sistema (para SERIAL_PORT)
- *   2) Las impresoras instaladas en el SO          (para SPOOLER_PRINTER_NAME)
+ * list-ports.js — Windows
+ * -------------------------
+ * Herramienta de diagnóstico. Muestra:
+ *   1) Puertos COM disponibles  → para configurar SERIAL_PORT (PT-210 BT)
+ *   2) Impresoras instaladas    → para configurar SPOOLER_PRINTER_NAME
  *
  * Uso:
  *   npm run list-ports
- *
- * Sirve sobre todo en macOS para descubrir el path de la impresora BT
- * tras emparejarla, y en cualquier SO para ver el nombre exacto de la
- * impresora en la cola del SO.
  */
 require('dotenv').config();
 
 (async () => {
   console.log('\n══════════════════════════════════════════════════════════════');
-  console.log('  PUERTOS SERIE DISPONIBLES (para PRINTER_TYPE=SERIAL)');
+  console.log('  PUERTOS COM DISPONIBLES  (PRINTER_TYPE=SERIAL)');
   console.log('══════════════════════════════════════════════════════════════\n');
 
   try {
@@ -25,21 +21,24 @@ require('dotenv').config();
     const ports = await listSerialPorts();
     if (!ports.length) {
       console.log('  (ninguno detectado)');
+      console.log('\n  Tip: asegurate de haber emparejado la PT-210 por Bluetooth');
+      console.log('       antes de ejecutar este comando.');
     } else {
       for (const p of ports) {
-        console.log(`  • ${p.path}`);
-        if (p.manufacturer)  console.log(`      manufacturer : ${p.manufacturer}`);
-        if (p.friendlyName)  console.log(`      friendlyName : ${p.friendlyName}`);
-        if (p.serialNumber)  console.log(`      serial       : ${p.serialNumber}`);
-        if (p.vendorId)      console.log(`      VID:PID      : ${p.vendorId}:${p.productId || '?'}`);
+        const isBT = /bluetooth/i.test(p.friendlyName || '') || /bluetooth/i.test(p.manufacturer || '');
+        const tag = isBT ? ' ← posible impresora BT' : '';
+        console.log(`  • ${p.path}${tag}`);
+        if (p.friendlyName)  console.log(`      Nombre       : ${p.friendlyName}`);
+        if (p.manufacturer)  console.log(`      Fabricante   : ${p.manufacturer}`);
+        if (p.serialNumber)  console.log(`      Serie        : ${p.serialNumber}`);
       }
     }
   } catch (err) {
-    console.error(`  ⚠️  No se pudieron listar los puertos serie: ${err.message}`);
+    console.error(`  ⚠️  No se pudieron listar los puertos COM: ${err.message}`);
   }
 
   console.log('\n══════════════════════════════════════════════════════════════');
-  console.log('  IMPRESORAS INSTALADAS EN EL SO (para PRINTER_TYPE=SPOOLER)');
+  console.log('  IMPRESORAS INSTALADAS EN WINDOWS  (PRINTER_TYPE=SPOOLER)');
   console.log('══════════════════════════════════════════════════════════════\n');
 
   try {
@@ -50,7 +49,7 @@ require('dotenv').config();
     } else {
       for (const p of printers) {
         const def = p.isDefault ? ' [default]' : '';
-        const status = p.status ? ` — ${Array.isArray(p.status) ? p.status.join(',') : p.status}` : '';
+        const status = p.status ? ` — ${Array.isArray(p.status) ? p.status.join(', ') : p.status}` : '';
         console.log(`  • ${p.name}${def}${status}`);
       }
     }
@@ -60,9 +59,16 @@ require('dotenv').config();
   }
 
   console.log('\n──────────────────────────────────────────────────────────────');
-  console.log('Tips:');
-  console.log('  • macOS PT-210 vía Bluetooth → suele aparecer como /dev/cu.<nombre>-SPP');
-  console.log('  • macOS — `lpstat -p` también lista impresoras de CUPS');
-  console.log('  • Windows BT → "Standard Serial over Bluetooth link" en Device Manager');
-  console.log('  • Linux  BT → necesita `rfcomm bind 0 <MAC> 1` antes\n');
+  console.log('  Setup PT-210 Bluetooth en Windows:');
+  console.log('');
+  console.log('  1. Encender PT-210 en modo emparejamiento (FEED ~3 seg)');
+  console.log('  2. Windows > Bluetooth > Agregar dispositivo > "PT-210"');
+  console.log('  3. El puerto COM aparece en Administrador de dispositivos');
+  console.log('     bajo "Puertos (COM y LPT)" como:');
+  console.log('     "Standard Serial over Bluetooth link (COMx)"');
+  console.log('  4. Configurar en .env:');
+  console.log('     PRINTER_TYPE=SERIAL');
+  console.log('     SERIAL_PORT=COMx    ← el que encontraste arriba');
+  console.log('     SERIAL_BAUD=9600');
+  console.log('──────────────────────────────────────────────────────────────\n');
 })();

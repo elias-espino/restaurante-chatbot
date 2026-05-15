@@ -1,0 +1,2 @@
+-- Agregar SERIAL y SPOOLER al enum PrinterType
+ALTER TABLE `printers` MODIFY COLUMN `type` ENUM('USB', 'NETWORK', 'SERIAL', 'SPOOLER') NOT NULL DEFAULT 'USB';
